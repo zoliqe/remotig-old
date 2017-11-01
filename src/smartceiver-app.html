@@ -1,0 +1,235 @@
+<!--
+@license
+Copyright (c) 2016 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<link rel="import" href="../bower_components/polymer/polymer-element.html">
+<link rel="import" href="../bower_components/app-layout/app-drawer/app-drawer.html">
+<link rel="import" href="../bower_components/app-layout/app-drawer-layout/app-drawer-layout.html">
+<link rel="import" href="../bower_components/app-layout/app-header/app-header.html">
+<link rel="import" href="../bower_components/app-layout/app-header-layout/app-header-layout.html">
+<link rel="import" href="../bower_components/app-layout/app-scroll-effects/app-scroll-effects.html">
+<link rel="import" href="../bower_components/app-layout/app-toolbar/app-toolbar.html">
+<link rel="import" href="../bower_components/app-route/app-location.html">
+<link rel="import" href="../bower_components/app-route/app-route.html">
+<link rel="import" href="../bower_components/iron-pages/iron-pages.html">
+<link rel="import" href="../bower_components/iron-selector/iron-selector.html">
+<link rel="import" href="../bower_components/paper-icon-button/paper-icon-button.html">
+<link rel="import" href="../bower_components/iron-icons/iron-icons.html">
+<link rel="import" href="main-view.html">
+<link rel="import" href="setuprx-view.html">
+<link rel="import" href="setuptx-view.html">
+<link rel="import" href="cwmem-view.html">
+<link rel="import" href="error404-view.html">
+
+<dom-module id="smartceiver-app">
+  <template>
+    <style>
+      :host {
+        --app-primary-color: #8f8f8f;
+        --app-secondary-color: #95c029;
+
+        display: block;
+      }
+
+      app-drawer-layout:not([narrow]) [drawer-toggle] {
+        display: none;
+      }
+
+      app-header {
+        color: #95c029;
+        background-color: #888888;
+        border-radius: 10px;
+        /*var(--app-primary-color);*/
+        /*max-height: 20px;*/
+      }
+
+      app-header paper-icon-button {
+        --paper-icon-button-ink-color: #95c029;
+      }
+
+      app-header div.freq-display {
+        /*text-align: right;*/
+        display: block;
+        font-size: 36pt;
+        font-weight: bold;
+        font-family: Courier New, Courier, monospace;
+        /*color: lightgreen;*/
+        /*padding-right: 20px;*/
+        padding-left: 20px;
+        text-align: left;
+      }
+
+      .drawer-list {
+        margin: 0 20px;
+      }
+
+      .drawer-list a {
+        display: block;
+        padding: 0 16px;
+        text-decoration: none;
+        color: var(--app-secondary-color);
+        line-height: 40px;
+      }
+
+      .drawer-list a.iron-selected {
+        color: black;
+        font-weight: bold;
+      }
+
+      .remotig {
+        position: absolute;
+        top: 350px;
+      }
+    </style>
+
+    <app-location route="{{route}}"></app-location>
+    <app-route
+        route="{{route}}"
+        pattern="/smartceiver/:page"
+        data="{{routeData}}"
+        tail="{{subroute}}"></app-route>
+
+    <app-drawer-layout fullbleed responsive-width="1024px">
+      <!-- Drawer content -->
+      <app-drawer id="drawer" slot="drawer" swipe-open>
+        <app-toolbar>Menu</app-toolbar>
+        <iron-selector selected="[[page]]" attr-for-selected="name" class="drawer-list" role="navigation">
+          <a name="tune" href="/smartceiver/tune">Control</a>
+          <!--<a name="setup-rx" href="/setup-rx">Setup RX</a>-->
+          <a name="settings" href="/smartceiver/settings">Settings</a>
+          <a name="cwmem" href="/smartceiver/cwmem">CW Memories</a>
+        </iron-selector>
+      </app-drawer>
+
+      <!-- Main content -->
+      <app-header-layout has-scrolling-region>
+
+        <app-header slot="header" fixed effects="waterfall">
+          <app-toolbar>
+            <paper-icon-button icon="menu" drawer-toggle></paper-icon-button>
+            <div main-title class="freq-display">[[freqDisplay]]</div>
+            <paper-icon-button icon="power-settings-new" on-tap="switchPower"></paper-icon-button>
+          </app-toolbar>
+        </app-header>
+
+        <iron-pages
+            selected="[[page]]"
+            attr-for-selected="name"
+            fallback-selection="error404"
+            role="main">
+          <main-view name="tune" bands="[[tcvr.allBands]]" modes="[[tcvr.allModes]]" band="{{tcvr.band}}" mode="{{tcvr.mode}}"
+            freq="{{tcvr.freq}}" narrow="{{tcvr.narrow}}" wpm="{{tcvr.wpm}}" preamp="{{tcvr.preamp}}" attn="{{tcvr.attn}}"></main-view>
+          <!--<setuprx-view name="setup-rx"></setuprx-view>-->
+          <setuptx-view name="settings" tx-enabled="{{tcvr.txEnabled}}" tx-keyed="{{tcvr.txKeyed}}" auto-space="{{tcvr.autoSpace}}"></setuptx-view>
+          <cwmem-view name="cwmem"></cwmem-view>
+          <error404-view name="error404"></error404-view>
+        </iron-pages>
+      </app-header-layout>
+    </app-drawer-layout>
+    <div class="remotig">
+      <video id="localStream"></video>
+      <div id="remoteStream"></div>
+    </div>
+  </template>
+
+  <script defer src="https://simplewebrtc.com/latest-v2.js"></script>
+  <script defer src="webrtc.js"></script>
+  <!-- <script defer src="webusb.js"></script> -->
+  <script src="tcvr.js"></script>
+
+  <script>
+    class SmartceiverApp extends Polymer.Element {
+
+      static get is() { return 'smartceiver-app'; }
+
+      static get properties() {
+        return {
+          page: {
+            type: String,
+            reflectToAttribute: true//,
+            // observer: '_pageChanged',
+          },
+         freqDisplay: {
+            type: String,
+            computed: 'formatFreq(tcvr.freq)'
+          }
+        };
+      }
+
+      static get observers() {
+        return [
+          '_routePageChanged(routeData.page)',
+        ];
+      }
+
+      constructor() {
+        super();
+        this.tcvr = new Transceiver();
+      }
+
+      formatFreq(freq) {
+        let mhz = Math.floor(freq / 1000000);
+        let res = '' + mhz + '.';
+        let khz = (freq - mhz * 1000000) / 1000;
+        if (khz < 10) {
+         res += '0';
+        }
+        if (khz < 100) {
+         res += '0';
+        }
+       res += khz;
+        if (khz % 1 === 0) {
+         res += '.00';
+        } else if (freq % 100 === 0) {
+         res += '0';
+        }
+
+        return res;
+      }
+
+      switchPower() {
+        this.tcvr.switchPower();
+      }
+
+      _routePageChanged(page) {
+        // Polymer 2.0 will call with `undefined` on initialization.
+        // Ignore until we are properly called with a string.
+        if (page === undefined) {
+          return;
+        }
+
+        // If no page was found in the route data, page will be an empty string.
+        // Deault to 'main' in that case.
+        console.log("page=" + page);
+        this.page = page || 'tune';
+
+        // Close a non-persistent drawer when the page & route are changed.
+        if (!this.$.drawer.persistent) {
+          this.$.drawer.close();
+        }
+      }
+
+      // _pageChanged(page) {
+      //   // Load page import on demand. Show 404 page if fails
+      //   var resolvedPageUrl = this.resolveUrl(page + '-view.html');
+      //   Polymer.importHref(
+      //       resolvedPageUrl,
+      //       null,
+      //       this._showPage404.bind(this),
+      //       true);
+      // }
+
+      // _showPage404() {
+      //   this.page = 'error404';
+      // }
+    }
+
+    window.customElements.define(SmartceiverApp.is, SmartceiverApp);
+  </script>
+</dom-module>

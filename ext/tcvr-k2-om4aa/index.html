@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>k2-om4aa service</title>
+  <script src="https://simplewebrtc.com/latest-v2.js"></script>
+  <script src="webusb.js"></script>
+
+  <style>
+    #remoteVideos video {
+      height: 150px;
+    }
+    #localVideo {
+        height: 150px;
+    }
+  </style>
+</head>
+<body>
+  <button onclick="connect()">Connect radio</button>
+  <video id="localVideo"></video>
+  <div id="remoteVideos"></div>
+  
+  <script>
+    var port = undefined;
+    function connect() {
+      console.log('connect');
+      connector.connect((p) => {
+        console.log('port: ' + p);
+        port = p;
+      });
+    }
+
+    let webrtc = new SimpleWebRTC({
+      localVideoEl: 'localVideo',
+      remoteVideosEl: 'remoteVideos',
+      autoRequestMedia: true,
+      enableDataChannels: true,
+      media: { video: false, audio: true },
+      receiveMedia: { offerToReceiveAudio: 1, offerToReceiveVideo: 0 },
+      nick: 'tcvr'
+    });
+    webrtc.on('readyToCall', () => webrtc.joinRoom('k2-om4aa'));
+    webrtc.on('channelMessage', (peer, label, data) => {
+      // e.g. we want label "hark" to be ignored, as it fires continiously.
+      if (label == 'hark') {
+        return true;
+      }
+
+      if (label == 'meta') {
+        if (data.type == 'ctl') {
+          // do your stuff
+          console.log(data.payload.msg);
+          if (port) {
+            port.send(data.payload.msg);
+          }
+        }
+      }
+    });
+  </script>
+</body>
+</html>
