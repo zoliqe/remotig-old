@@ -1,1 +1,1 @@
-{"cpu":{"fqbn":"arduino:avr:uno","name":"Arduino/Genuino Uno","port":""},"secrets":[]}
+{"cpu":{"name":"Arduino/Genuino Micro","com_name":"/dev/ttyACM0","fqbn":"arduino:avr:micro","flavour":"default"},"secrets":[]}

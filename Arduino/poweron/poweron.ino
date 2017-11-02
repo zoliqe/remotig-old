@@ -43,7 +43,7 @@ void loop() {
     } else if (val == "POWERSTATE") {
       swstate();
     } else {
-      catSerial.write(val + ";");
+      catSerial.print(val + ";");
     }
 //    Serial.write("\r\n> ");
   }

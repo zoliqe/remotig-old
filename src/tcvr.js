@@ -3,10 +3,11 @@ const _bands = ['1.8', '3.5', '7', '10.1', '14', '18', '21', '24', '28'];
 const _bandLowEdges = [1800000, 3500000, 7000000, 10100000, 14000000, 18068000, 21000000, 24890000, 28000000];
 const _modes = ['LSB', 'USB', 'CW', 'CWR']; // order copies mode code for MDn cmd
 const _narrowFilters = ['1800', '1800', '0200', '0200']; // in _modes order
-const _wideFilters =   ['2700', '2700', '0700', '0700']; // in _modes order
+const _wideFilters =   ['2700', '2700', '0600', '0600']; // in _modes order
 
 class Transceiver {
   constructor() {
+    this._connectorId = 'k2-webrtc'; // TODO configurable
     this._rxVfo = 0;
     this._txVfo = 0; // TODO split operation
     this._band = 2;
@@ -44,7 +45,7 @@ class Transceiver {
       this._d("disconnect", true);
     } else {
       console.log('connect');
-      connector.connect((port) => {
+      tcvrConnectors.get(this._connectorId).connect((port) => {
         this._port = port;
         // reset tcvr configuration
         this.freq = this._freq[this._band][this._mode][this._rxVfo];
@@ -55,11 +56,37 @@ class Transceiver {
         this.narrow = this._narrow;
         this.preamp = this._preamp;
         this.attn = this._attn;
+        this._attachKeying();
       });
     }
   }
 
-  _connect() {
+  connectRemoddle() {
+    if (this._remoddle) {
+      this._remoddle.disconnect();
+      this._remoddle = undefined;
+      return;
+    }
+    if (tcvrConnectors.get(this._connectorId).constructor.capabilities.includes(Remoddle.id)) {
+      new Remoddle().connect(remoddle => {
+        this._remoddle = remoddle;
+        remoddle.wpm = this.wpm; // sync with current wpm state
+        this._attachKeying();
+      });
+    }
+  }
+
+  _attachKeying() {
+    if (this._remoddle && this._port) {
+      this._remoddle.onDit = () => this._port.sendDit;
+      this._remoddle.onDah = () => this._port.sendDah;
+    }
+  }
+
+  whenConnected(proceed) {
+    if (this._port) {
+      proceed();
+    }
   }
 
   get allBands() {
@@ -79,141 +106,175 @@ class Transceiver {
     return this._band;
   }
   set band(band) {
-    this._d("band", band);
-    if (this._port == undefined || !(band in _bands)) {
-      return;
-    }
-    this._band = band;
-    this.freq = this._freq[this._band][this._mode][this._rxVfo]; // call setter
+    this.whenConnected(() => {
+      this._d("band", band);
+      if (band in _bands) {
+        this._band = band;
+        this.freq = this._freq[this._band][this._mode][this._rxVfo]; // call setter  
+      }
+    });
   }
 
   get mode() {
     return this._mode;
   }
   set mode(value) {
-    this._d("mode", value);
-    if (this._port == undefined || !(value in _modes)) {
-      return;
-    }
-    this._mode = value;
-    this.freq = this._freq[this._band][this._mode][this._rxVfo]; // call setter
-    this._port.send("MD" + (this._mode + 1) + ";");
+    this.whenConnected(() => {
+      this._d("mode", value);
+      if (value in _modes) {
+        this._mode = value;
+        this.freq = this._freq[this._band][this._mode][this._rxVfo]; // call setter
+        this._port.send("MD" + (this._mode + 1) + ";");
+      }
+    });
   }
 
   get freq() {
     return this._freq[this._band][this._mode][this._rxVfo];
   }
   set freq(freq) {
-    if (this._port == undefined) {
-      return;
-    }
-    this._freq[this._band][this._mode][this._rxVfo] = freq;
-    this._d("freq", freq);
-
-    let data = "F" + _vfos[this._rxVfo]; // TODO split
-    data += "000";
-    if (freq < 10000000) { // <10MHz
-        data += "0";
-    }
-    data += freq;
-    this._port.send(data + ";");
+    this.whenConnected(() => {
+      this._freq[this._band][this._mode][this._rxVfo] = freq;
+      this._d("freq", freq);
+  
+      let data = "F" + _vfos[this._rxVfo]; // TODO split
+      data += "000";
+      if (freq < 10000000) { // <10MHz
+          data += "0";
+      }
+      data += freq;
+      this._port.send(data + ";");  
+    });
   }
 
   get wpm() {
     return this._wpm;
   }
   set wpm(wpm) {
-    if (this._port == undefined) {
-      return;
-    }
-    this._wpm = wpm;
-    this._d("wpm", wpm);
-    this._port.send("KS0" + wpm + ";");
+    this.whenConnected(() => {
+      this._wpm = wpm;
+      this._d("wpm", wpm);
+      this._port.wpm = wpm;
+      if (this._remoddle) {
+        this._remoddle.wpm = wpm; // propagate the change
+      }
+    // this._port.send("KS0" + wpm + ";");
+    });
   }
 
   get narrow() {
     return this._narrow;
   }
   set narrow(narrow) {
-    if (this._port == undefined) {
-      return;
-    }
-    this._narrow = narrow;
-    this._d("narrow", narrow);
-    let data = "FW" + (narrow ? _narrowFilters[this._mode] : _wideFilters[this._mode]);
-    this._port.send(data + ";");
+    this.whenConnected(() => {
+      this._narrow = narrow;
+      this._d("narrow", narrow);
+      let data = "FW" + (narrow ? _narrowFilters[this._mode] : _wideFilters[this._mode]);
+      this._port.send(data + ";");
+    });
   }
 
   get preamp() {
     return this._preamp;
   }
   set preamp(state) {
-    if (this._port == undefined) {
-      return;
-    }
-    this._preamp = state;
-    this._d("preamp", this._preamp);
-    this._port.send("PA" + (this._preamp ? "1" : "0") + ";");
+    this.whenConnected(() => {
+      this._preamp = state;
+      this._d("preamp", this._preamp);
+      this._port.send("PA" + (this._preamp ? "1" : "0") + ";");
+    });
   }
 
   get attn() {
     return this._attn;
   }
   set attn(state) {
-    if (this._port == undefined) {
-      return;
-    }
-    this._attn = state;
-    this._d("attn", this._attn);
-    this._port.send("RA0" + (this._attn ? "1" : "0") + ";");
+    this.whenConnected(() => {
+      this._attn = state;
+      this._d("attn", this._attn);
+      this._port.send("RA0" + (this._attn ? "1" : "0") + ";");
+    });
   }
 
   get txEnabled() {
     return this._txEnabled;
   }
   set txEnabled(txEnabled) {
-    if (this._port == undefined) {
-      return;
-    }
-    this._txEnabled = txEnabled;
-    this._d("txEnabled", txEnabled);
-
-    // let data = "KE" + (txEnabled ? "1" : "0");
-    // this._port.send(data + ";");
+    this.whenConnected(() => {
+      this._txEnabled = txEnabled;
+      this._d("txEnabled", txEnabled);
+  
+      // let data = "KE" + (txEnabled ? "1" : "0");
+      // this._port.send(data + ";");
+    });
   }
 
   get autoSpace() {
     return this._autoSpace;
   }
   set autoSpace(autoSpace) {
-    if (this._port == undefined) {
-      return;
-    }
-    this._autoSpace = autoSpace;
-    this._d("autoSpace", autoSpace);
-
-    // let data = "KA" + (autoSpace ? "1" : "0");
-    // this._port.send(data + ";");
+    this.whenConnected(() => {
+      this._autoSpace = autoSpace;
+      this._d("autoSpace", autoSpace);
+  
+      // let data = "KA" + (autoSpace ? "1" : "0");
+      // this._port.send(data + ";");
+    });
   }
 
   get txKeyed() {
     return this._txKeyed;
   }
   set txKeyed(txKeyed) {
-    if (this._port == undefined) {
-      return;
-    }
-    this._txKeyed = txKeyed;
-    this._d("txKeyed", txKeyed);
-
-    // let data = "KT" + (txKeyed ? "1" : "0");
-    // this._port.send(data + ";");
+    this.whenConnected(() => {
+      this._txKeyed = txKeyed;
+      this._d("txKeyed", txKeyed);
+  
+      // let data = "KT" + (txKeyed ? "1" : "0");
+      // this._port.send(data + ";");
+    });
   }
 
   _d(what, value) {
     console.log(what + "=" + value);
   }
 }
+
+// TODO propagete changes via event listeners
+class StateChangeEvent {
+  constructor(target, data) {
+    this._target = target;
+    this._data = data;
+  }
+  get target() { return this._target; }
+  get data() { return this._data; }
+}
+
+let EventType = Object.freeze({freq: 1, wpm: 2, mode: 3, vfo: 4, filter: 5, preamp: 6, attn: 7, keyDit: 8, keyDah: 9});
+
+class ConnectorRegister {
+  constructor() {
+    this._reg = {};
+  }
+
+  register(connector) {
+    this._reg[connector.constructor.id] = connector;
+  }
+
+//   get(index) {
+//     return this._reg[index];
+//   }
+
+  get(id) {
+    return this._reg[id];
+  }
+
+  get all() {
+    return Object.values(this._reg);
+  }
+}
+
+var tcvrConnectors = new ConnectorRegister();
 
     // this._freq = {
     //   "1.8": 

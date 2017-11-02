@@ -1,5 +1,9 @@
 
-class WebRTCConnector {
+class K2WebRTCConnector {
+  static get id() { return 'k2-webrtc'; }
+  static get name() { return 'K2 remote via WebRTC'; }
+  static get capabilities() { return [Remoddle.id]; }
+
   constructor() {
     this._options = {
       localVideoEl: 'localStream',
@@ -14,42 +18,47 @@ class WebRTCConnector {
 
   connect(successCallback) {
     let webrtc = new SimpleWebRTC(this._options);
-    webrtc.on('readyToCall', () => webrtc.joinRoom('k2-om4aa', (err, room) => {
+    webrtc.on('readyToCall', () => webrtc.joinRoom('k2-om4aa', (err, room) => { // TODO configurable room -> connectionId
       if (err) {
         console.log("connect err: " + err);
       } else {
         console.log("connect succeed: " + room);
-        // webrtc.mute();
-        // webrtc.pauseVideo();
-        let port = new WebRTCPort(webrtc);
+        webrtc.mute();
+        webrtc.pauseVideo();
+        let port = new K2WebRTCPort(webrtc);
         setTimeout(() => {
+          port.send('USESEMICOLON;');
           port.send('POWERON;');
           setTimeout(() => {
-            port.timer = setInterval(() => port.send('POWERON;'), 10000);
+            port._timer = setInterval(() => port.send('POWERON;'), 10000);
             successCallback(port);
-          }, 5000);
-        }, 3000);
+          }, 5000); // delay for tcvr-init after poweron 
+        }, 3000); // delay for webrtc peer connection establish
       }
     }));
   }
 }
 
-class WebRTCPort {
+class K2WebRTCPort {
   constructor(webrtc) {
     this._webrtc = webrtc;
   }
 
-  // poweron() {
-    // this.send('POWERON;');
-    // setTimeout(this._onPoweredOn, 5000);
+  // set timer(val) {
+  //   this._timer = val;
   // }
-  set timer(val) {
-    this._timer = val;
+
+  set wpm(val) {
+    this.send("KS0" + val + ";");
   }
-  // _onPoweredOn() {
-  //   this._timer = setInterval(() => this.send('POWERON'), 10000);
-  //   this._successCallback(this);
-  // }
+
+  sendDit() {
+    this.send("KY E;");
+  }
+
+  sendDah() {
+    this.send("KY T;");
+  }
 
   send(data) {
     // https://stackoverflow.com/questions/37891029/usage-example-of-senddirectlytoall-of-simplewebrtc
@@ -58,8 +67,9 @@ class WebRTCPort {
 
   disconnect() {
     clearInterval(this._timer);
+    this.send('POWERON;');
     this._webrtc.disconnect();
   }
 }
 
-var connector = new WebRTCConnector();
+tcvrConnectors.register(new K2WebRTCConnector());
