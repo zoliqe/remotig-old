@@ -44,22 +44,16 @@ class K2WebRTCPort {
     this._webrtc = webrtc;
   }
 
-  // set timer(val) {
-  //   this._timer = val;
-  // }
-
   set wpm(val) {
     this.send("KS0" + val + ";");
   }
 
   sendDit() {
-    console.log('.');
-    this.send("KY E;");
+    this.send(".;");
   }
 
   sendDah() {
-    console.log('-');
-    this.send("KY T;");
+    this.send("-;");
   }
 
   send(data) {
