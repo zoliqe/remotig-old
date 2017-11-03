@@ -53,10 +53,12 @@ class K2WebRTCPort {
   }
 
   sendDit() {
+    console.log('.');
     this.send("KY E;");
   }
 
   sendDah() {
+    console.log('-');
     this.send("KY T;");
   }
 

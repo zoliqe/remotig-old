@@ -78,8 +78,8 @@ class Transceiver {
 
   _attachKeying() {
     if (this._remoddle && this._port) {
-      this._remoddle.onDit = () => this._port.sendDit;
-      this._remoddle.onDah = () => this._port.sendDah;
+      this._remoddle.onDit = () => this._port.sendDit();
+      this._remoddle.onDah = () => this._port.sendDah();
     }
   }
 
