@@ -4,6 +4,8 @@ const _bandLowEdges = [1800000, 3500000, 7000000, 10100000, 14000000, 18068000, 
 const _modes = ['LSB', 'USB', 'CW', 'CWR']; // order copies mode code for MDn cmd
 const _narrowFilters = ['1800', '1800', '0200', '0200']; // in _modes order
 const _wideFilters =   ['2700', '2700', '0600', '0600']; // in _modes order
+const _sidetoneFreq = 600;
+const _sidetoneLevel = 0.2;
 
 class Transceiver {
   constructor() {
@@ -35,6 +37,7 @@ class Transceiver {
     this._narrow = false;
     this._preamp = false;
     this._attn = false;
+    this._audioCtx = new AudioContext();
     this._d("tcvr-init", "done");
   }
 
@@ -77,10 +80,34 @@ class Transceiver {
   }
 
   _attachKeying() {
-    if (this._remoddle && this._port) {
-      this._remoddle.onDit = () => this._port.sendDit();
-      this._remoddle.onDah = () => this._port.sendDah();
-    }
+    this.whenConnected(() => {
+      if (this._remoddle) {
+        this._remoddle.onDit = () => {
+          this._port.sendDit();
+          this._sidetoneOn(1);
+        };
+        this._remoddle.onDah = () => {
+          this._port.sendDah();
+          this._sidetoneOn(3);
+        };
+      }
+    });
+  }
+
+  _sidetoneOn(len) {
+    let bfo = this._audioCtx.createOscillator();
+    let amp = this._audioCtx.createGain();
+
+    bfo.frequency.setValueAtTime(_sidetoneFreq, 0); // TODO configurable
+    amp.gain.setValueAtTime(_sidetoneLevel, 0); // TODO configurable
+
+    bfo.connect(amp);
+    amp.connect(this._audioCtx.destination);
+
+    bfo.start();
+    setTimeout(() => {
+      bfo.stop();
+    }, len * (1200 / this._wpm));
   }
 
   whenConnected(proceed) {
