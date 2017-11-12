@@ -38,6 +38,9 @@ class Transceiver {
     this._preamp = false;
     this._attn = false;
     this._audioCtx = new AudioContext();
+    this._listeners = {};
+    this.addEventListener(EventType.keyDit, event => this._sidetoneOn(1));
+    this.addEventListener(EventType.keyDah, event => this._sidetoneOn(3));
     this._d("tcvr-init", "done");
   }
 
@@ -81,8 +84,8 @@ class Transceiver {
 
   _attachKeying() {
     this.whenConnected(() => {
-      if (this._remoddle) {
-        this._remoddle.onDit = () => {
+      if (this._remoddle) { // TODO remove
+          this._remoddle.onDit = () => {
           this._port.sendDit();
           this._sidetoneOn(1);
         };
@@ -152,6 +155,7 @@ class Transceiver {
         this._mode = value;
         this.freq = this._freq[this._band][this._mode][this._rxVfo]; // call setter
         this._port.send("MD" + (this._mode + 1) + ";");
+        this.dispatchEvent(new ChangeEvent(EventType.mode, this._mode));
       }
     });
   }
@@ -171,6 +175,7 @@ class Transceiver {
       }
       data += freq;
       this._port.send(data + ";");  
+      this.dispatchEvent(new ChangeEvent(EventType.freq, freq));
     });
   }
 
@@ -182,7 +187,8 @@ class Transceiver {
       this._wpm = wpm;
       this._d("wpm", wpm);
       this._port.wpm = wpm;
-      if (this._remoddle) {
+      this.dispatchEvent(new ChangeEvent(EventType.wpm, wpm));
+      if (this._remoddle) { // TODO remove after use listener
         this._remoddle.wpm = wpm; // propagate the change
       }
     // this._port.send("KS0" + wpm + ";");
@@ -198,6 +204,7 @@ class Transceiver {
       this._d("narrow", narrow);
       let data = "FW" + (narrow ? _narrowFilters[this._mode] : _wideFilters[this._mode]);
       this._port.send(data + ";");
+      this.dispatchEvent(new ChangeEvent(EventType.filter, this._narrow));
     });
   }
 
@@ -209,6 +216,7 @@ class Transceiver {
       this._preamp = state;
       this._d("preamp", this._preamp);
       this._port.send("PA" + (this._preamp ? "1" : "0") + ";");
+      this.dispatchEvent(new ChangeEvent(EventType.preamp, this._preamp));
     });
   }
 
@@ -220,6 +228,7 @@ class Transceiver {
       this._attn = state;
       this._d("attn", this._attn);
       this._port.send("RA0" + (this._attn ? "1" : "0") + ";");
+      this.dispatchEvent(new ChangeEvent(EventType.attn, this._attn));
     });
   }
 
@@ -262,22 +271,88 @@ class Transceiver {
     });
   }
 
+  addEventListener(type, callback) {
+    if (!(type in this._listeners)) {
+      this._listeners[type] = [];
+    }
+    this._listeners[type].push(callback);
+    this._d("addEventListener: " + type + ", callbacks:", this._listeners[type].length);
+  }
+
+  removeEventListener(type, callback) {
+    if (!(type in this._listeners)) {
+      return;
+    }
+    let stack = this._listeners[type];
+    for (let i = 0, l = stack.length; i < l; i++) {
+      if (stack[i] === callback) {
+        stack.splice(i, 1);
+        this._d("removeEventListener: " + type + ", callbacks:", stack.length);
+        return;
+      }
+    }
+  }
+
+  dispatchEvent(event) {
+    if (!(event.type in this._listeners)) {
+      return true;
+    }
+    let stack = this._listeners[event.type];
+    stack.forEach(callback => callback.call(this, event));
+    return true;//!event.defaultPrevented;
+  }
+
   _d(what, value) {
     console.log(what + "=" + value);
   }
 }
 
 // TODO propagete changes via event listeners
-class StateChangeEvent {
-  constructor(target, data) {
-    this._target = target;
-    this._data = data;
+class ChangeEvent {
+  constructor(type, value) {
+    this._type = type;
+    this._value = value;
   }
-  get target() { return this._target; }
-  get data() { return this._data; }
+  get type() { return this._type; }
+  get value() { return this._value; }
 }
 
-let EventType = Object.freeze({freq: 1, wpm: 2, mode: 3, vfo: 4, filter: 5, preamp: 6, attn: 7, keyDit: 8, keyDah: 9});
+const EventType = Object.freeze({freq: 1, wpm: 2, mode: 3, vfo: 4, filter: 5, preamp: 6, attn: 7, keyDit: 8, keyDah: 9});
+
+// class ChangeEventTarget {
+//   constructor() {
+//     this.listeners = {};
+//   }
+
+//   addEventListener(type, callback) {
+//     if (!(type in this.listeners)) {
+//       this.listeners[type] = [];
+//     }
+//     this.listeners.push(callback);
+//   }
+
+//   removeEventListener(type, callback) {
+//     if (!(type in this.listeners)) {
+//       return;
+//     }
+//     let stack = this.listeners[type];
+//     for (let i = 0, l = stack.length; i < l; i++) {
+//       if (stack[i] === callback) {
+//         stack.splice(i, 1);
+//         return;
+//       }
+//     }
+//   }
+
+//   dispatchEvent(event) {
+//     if (!(event.type in this.listeners)) {
+//       return true;
+//     }
+//     let stack = this.listeners[event.type];
+//     stack.forEach(callback => callback.call(this, event));
+//     return !event.defaultPrevented;
+//   }
+// }
 
 class ConnectorRegister {
   constructor() {

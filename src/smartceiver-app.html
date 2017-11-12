@@ -120,7 +120,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           <app-toolbar>
             <paper-icon-button icon="menu" drawer-toggle></paper-icon-button>
             <div main-title class="freq-display">[[freqDisplay]]</div>
-            <div>v2</div>
+            <div>v3</div>
             <paper-icon-button icon="gavel" on-tap="connectRemoddle"></paper-icon-button>
             <paper-icon-button icon="power-settings-new" on-tap="switchPower"></paper-icon-button>
           </app-toolbar>
@@ -131,7 +131,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             attr-for-selected="name"
             fallback-selection="error404"
             role="main">
-          <main-view name="tune" bands="[[tcvr.allBands]]" modes="[[tcvr.allModes]]" band="{{tcvr.band}}" mode="{{tcvr.mode}}"
+          <main-view id="tune" name="tune" bands="[[tcvr.allBands]]" modes="[[tcvr.allModes]]" band="{{tcvr.band}}" mode="{{tcvr.mode}}"
             freq="{{tcvr.freq}}" narrow="{{tcvr.narrow}}" wpm="{{tcvr.wpm}}" preamp="{{tcvr.preamp}}" attn="{{tcvr.attn}}"></main-view>
           <!--<setuprx-view name="setup-rx"></setuprx-view>-->
           <setuptx-view name="settings" tx-enabled="{{tcvr.txEnabled}}" tx-keyed="{{tcvr.txKeyed}}" auto-space="{{tcvr.autoSpace}}"></setuptx-view>
@@ -180,9 +180,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       constructor() {
         super();
         this.tcvr = new Transceiver();
+        this.tcvr.addEventListener(EventType.freq, event => this._freqChanged(event.value)); // listen for freq changes on mode/band change
+      }
+
+      _freqChanged(freq) {
+        if (freq == this._freq) {
+          return; // stop propagate freq change when changed by tuning knob (already propagated)
+        }
+        this.notifyPath('tcvr.freq');
+        this.$.tune.notifyPath('freq');
       }
 
       formatFreq(freq) {
+        this._freq = freq; // store value for change detect
         let mhz = Math.floor(freq / 1000000);
         let res = '' + mhz + '.';
         let khz = (freq - mhz * 1000000) / 1000;
