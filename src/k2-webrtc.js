@@ -5,6 +5,7 @@ class K2WebRTCConnector {
   static get capabilities() { return [Remoddle.id]; }
 
   constructor() {
+//     this._tcvr = tcvr;
     this._options = {
       localVideoEl: 'localStream',
       remoteVideoEl: 'remoteStream',
@@ -16,8 +17,9 @@ class K2WebRTCConnector {
     };
   }
 
-  connect(successCallback) {
+  connect(tcvr, successCallback) {
     let webrtc = new SimpleWebRTC(this._options);
+//     let tcvr = this._tcvr;
     webrtc.on('readyToCall', () => webrtc.joinRoom('k2-om4aa', (err, room) => { // TODO configurable room -> connectionId
       if (err) {
         console.log("connect err: " + err);
@@ -31,6 +33,9 @@ class K2WebRTCConnector {
           port.send('POWERON;');
           setTimeout(() => {
             port._timer = setInterval(() => port.send('POWERON;'), 10000);
+            tcvr.addEventListener(EventType.keyDit, event => port._sendDit());
+            tcvr.addEventListener(EventType.keyDah, event => port._sendDah());
+            
             successCallback(port);
           }, 5000); // delay for tcvr-init after poweron 
         }, 3000); // delay for webrtc peer connection establish
@@ -48,11 +53,11 @@ class K2WebRTCPort {
     this.send("KS0" + val + ";");
   }
 
-  sendDit() {
+  _sendDit() {
     this.send(".;");
   }
 
-  sendDah() {
+  _sendDah() {
     this.send("-;");
   }
 

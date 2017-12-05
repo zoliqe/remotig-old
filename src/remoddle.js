@@ -1,6 +1,7 @@
 class Remoddle {
-  constructor() {
+  constructor(tcvr) {
     this._port = undefined;
+    this._tcvr = tcvr;
   }
 
   static get id() { return 'remoddle'; }
@@ -68,11 +69,13 @@ class Remoddle {
   }
 
   onDit() {
-    console.log('remoddle: .');
+    // console.log('remoddle: .');
+    this._tcvr.dispatchEvent(new TcvrEvent(EventType.keyDit, 1));    
   }
 
   onDah() {
-    console.log('remoddle: -');
+    // console.log('remoddle: -');
+    this._tcvr.dispatchEvent(new TcvrEvent(EventType.keyDah, 1));    
   }
 }
 

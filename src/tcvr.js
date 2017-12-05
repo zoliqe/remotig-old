@@ -37,10 +37,11 @@ class Transceiver {
     this._narrow = false;
     this._preamp = false;
     this._attn = false;
-    this._audioCtx = new AudioContext();
+    // this._buildBFO();
+    
     this._listeners = {};
-    this.addEventListener(EventType.keyDit, event => this._sidetoneOn(1));
-    this.addEventListener(EventType.keyDah, event => this._sidetoneOn(3));
+    this.addEventListener(EventType.keyDit, event => this._tone(1));
+    this.addEventListener(EventType.keyDah, event => this._tone(3));
     this._d("tcvr-init", "done");
   }
 
@@ -51,7 +52,7 @@ class Transceiver {
       this._d("disconnect", true);
     } else {
       console.log('connect');
-      tcvrConnectors.get(this._connectorId).connect((port) => {
+      tcvrConnectors.get(this._connectorId).connect(this, (port) => {
         this._port = port;
         // reset tcvr configuration
         this.freq = this._freq[this._band][this._mode][this._rxVfo];
@@ -62,7 +63,7 @@ class Transceiver {
         this.narrow = this._narrow;
         this.preamp = this._preamp;
         this.attn = this._attn;
-        this._attachKeying();
+//         this._attachKeying();
       });
     }
   }
@@ -74,43 +75,50 @@ class Transceiver {
       return;
     }
     if (tcvrConnectors.get(this._connectorId).constructor.capabilities.includes(Remoddle.id)) {
-      new Remoddle().connect(remoddle => {
+      new Remoddle(this).connect(remoddle => {
         this._remoddle = remoddle;
         remoddle.wpm = this.wpm; // sync with current wpm state
-        this._attachKeying();
+        // this._attachKeying();
       });
     }
   }
 
-  _attachKeying() {
-    this.whenConnected(() => {
-      if (this._remoddle) { // TODO remove
-          this._remoddle.onDit = () => {
-          this._port.sendDit();
-          this._sidetoneOn(1);
-        };
-        this._remoddle.onDah = () => {
-          this._port.sendDah();
-          this._sidetoneOn(3);
-        };
-      }
-    });
+  // _attachKeying() {
+  //   // this.whenConnected(() => {
+  //     if (this._remoddle) { // TODO remove
+  //         this._remoddle.onDit = () => {
+  //         this._port.sendDit();
+  //         this._tone(1);
+  //       };
+  //       this._remoddle.onDah = () => {
+  //         this._port.sendDah();
+  //         this._tone(3);
+  //       };
+  //     }
+  //   // });
+  // }
+
+  _tone(len) {
+    if (this._bfoAmp) {
+      this._bfoAmp.gain.setValueAtTime(_sidetoneLevel, 0); // TODO configurable
+      setTimeout(() => {
+        this._bfoAmp.gain.setValueAtTime(0, 0);
+      }, len * (1200 / this._wpm + 5));
+    }
   }
 
-  _sidetoneOn(len) {
-    let bfo = this._audioCtx.createOscillator();
-    let amp = this._audioCtx.createGain();
+  _buildBFO() {
+    let audioCtx = new AudioContext();
+    this._bfo = audioCtx.createOscillator();
+    this._bfoAmp = audioCtx.createGain();
 
-    bfo.frequency.setValueAtTime(_sidetoneFreq, 0); // TODO configurable
-    amp.gain.setValueAtTime(_sidetoneLevel, 0); // TODO configurable
+    this._bfo.frequency.setValueAtTime(_sidetoneFreq, 0); // TODO configurable
+    this._bfoAmp.gain.setValueAtTime(0, 0);
 
-    bfo.connect(amp);
-    amp.connect(this._audioCtx.destination);
+    this._bfo.connect(this._bfoAmp);
+    this._bfoAmp.connect(audioCtx.destination);
 
-    bfo.start();
-    setTimeout(() => {
-      bfo.stop();
-    }, len * (1200 / this._wpm));
+    this._bfo.start();
   }
 
   whenConnected(proceed) {
@@ -155,7 +163,7 @@ class Transceiver {
         this._mode = value;
         this.freq = this._freq[this._band][this._mode][this._rxVfo]; // call setter
         this._port.send("MD" + (this._mode + 1) + ";");
-        this.dispatchEvent(new ChangeEvent(EventType.mode, this._mode));
+        this.dispatchEvent(new TcvrEvent(EventType.mode, this._mode));
       }
     });
   }
@@ -175,7 +183,7 @@ class Transceiver {
       }
       data += freq;
       this._port.send(data + ";");  
-      this.dispatchEvent(new ChangeEvent(EventType.freq, freq));
+      this.dispatchEvent(new TcvrEvent(EventType.freq, freq));
     });
   }
 
@@ -187,7 +195,7 @@ class Transceiver {
       this._wpm = wpm;
       this._d("wpm", wpm);
       this._port.wpm = wpm;
-      this.dispatchEvent(new ChangeEvent(EventType.wpm, wpm));
+      this.dispatchEvent(new TcvrEvent(EventType.wpm, wpm));
       if (this._remoddle) { // TODO remove after use listener
         this._remoddle.wpm = wpm; // propagate the change
       }
@@ -204,7 +212,7 @@ class Transceiver {
       this._d("narrow", narrow);
       let data = "FW" + (narrow ? _narrowFilters[this._mode] : _wideFilters[this._mode]);
       this._port.send(data + ";");
-      this.dispatchEvent(new ChangeEvent(EventType.filter, this._narrow));
+      this.dispatchEvent(new TcvrEvent(EventType.filter, this._narrow));
     });
   }
 
@@ -216,7 +224,7 @@ class Transceiver {
       this._preamp = state;
       this._d("preamp", this._preamp);
       this._port.send("PA" + (this._preamp ? "1" : "0") + ";");
-      this.dispatchEvent(new ChangeEvent(EventType.preamp, this._preamp));
+      this.dispatchEvent(new TcvrEvent(EventType.preamp, this._preamp));
     });
   }
 
@@ -228,7 +236,7 @@ class Transceiver {
       this._attn = state;
       this._d("attn", this._attn);
       this._port.send("RA0" + (this._attn ? "1" : "0") + ";");
-      this.dispatchEvent(new ChangeEvent(EventType.attn, this._attn));
+      this.dispatchEvent(new TcvrEvent(EventType.attn, this._attn));
     });
   }
 
@@ -271,6 +279,20 @@ class Transceiver {
     });
   }
 
+  get sidetone() {
+    return this._bfoAmp !== undefined;
+  }
+  set sidetone(state) {
+    if (state) {
+      if ( ! this.sidetone) {
+        this._buildBFO();
+      }
+    } else {
+      this._bfoAmp = undefined;
+      this._bfo.stop();
+    }
+  }
+
   addEventListener(type, callback) {
     if (!(type in this._listeners)) {
       this._listeners[type] = [];
@@ -308,7 +330,7 @@ class Transceiver {
 }
 
 // TODO propagete changes via event listeners
-class ChangeEvent {
+class TcvrEvent {
   constructor(type, value) {
     this._type = type;
     this._value = value;
@@ -319,7 +341,7 @@ class ChangeEvent {
 
 const EventType = Object.freeze({freq: 1, wpm: 2, mode: 3, vfo: 4, filter: 5, preamp: 6, attn: 7, keyDit: 8, keyDah: 9});
 
-// class ChangeEventTarget {
+// class TcvrEventTarget {
 //   constructor() {
 //     this.listeners = {};
 //   }

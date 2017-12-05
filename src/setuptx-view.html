@@ -34,6 +34,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         <paper-toggle-button noink checked="{{txEnabled}}">Enable transmitter</paper-toggle-button>
         <paper-toggle-button noink checked="{{txKeyed}}">Key transmitter (TUNE)</paper-toggle-button>
         <paper-toggle-button noink checked="{{autoSpace}}">Insert auto space in keying</paper-toggle-button>
+        <paper-toggle-button noink checked="{{sidetone}}">Enable sidetone during CW keying</paper-toggle-button>
       </div>
       <p>Auto space, PTT tail/lead-delay, PWR level, TX Enabled, Sidetone freq, TUNE?.</p>
     </div>
@@ -47,6 +48,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           txEnabled: {type: Boolean, notify: true},
           txKeyed: {type: Boolean, notify: true},
           autoSpace: {type: Boolean, notify: true},
+          sidetone: {type: Boolean, notify: true},
         };
       }
     }
