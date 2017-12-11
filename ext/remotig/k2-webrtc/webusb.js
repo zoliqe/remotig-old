@@ -6,7 +6,7 @@ var connector = {};
   connector.encoder_ = new TextEncoder();
   connector.decoder_ = new TextDecoder();
 
-  connector.connect = function(successCallback) {
+  connector.connect = function(successCallback, onReceiveError, onError) {
     connector.requestPort().then(selectedPort => {
       console.log('Connecting to ' + selectedPort.device_.productName);
       selectedPort.connect().then(() => {
@@ -16,13 +16,16 @@ var connector = {};
         };
         selectedPort.onReceiveError = error => {
           console.log('Receive error: ' + error);
+          onReceiveError(error);
         };
         successCallback(selectedPort);
       }, error => {
          console.log('Connection error (2): ' + error);
+         onError(error);
       });
     }).catch(error => {
       console.error('Connection error (1): ' + error);
+      onError(error);
     });
   }
 
