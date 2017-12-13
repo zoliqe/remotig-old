@@ -10,6 +10,7 @@
   "license": "GPL-3.0",
   "dependencies": {
     "express": "^4.16.2",
-    "mic": "^2.1.2"
+    "mic": "^2.1.2",
+    "webaudio-wav-stream-player": "^1.0.11"
   }
 }

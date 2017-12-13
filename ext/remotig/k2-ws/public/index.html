@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, shrink-to-fit=0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+  <title>web-audio-player</title>
+  <style>
+  </style>
+</head>
+<body>
+  <h3>webaudio-wav-stream-player example</h3>
+  
+  <button onclick="play()">Start RX</button>
+  <button onclick="stop()">Stop RX</button>
+  
+  <script src="wav-player.js"></script>
+  <script>
+  let player = new WavPlayer();
+  function play() {
+    player.play('/stream.wav');
+  }
+  function stop() {
+    player.stop();
+  }
+  </script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 //var lame = require('lame');
-var mic = require('mic');
-var fs = require('fs');
+var mic = require('mic')
+var fs = require('fs')
 
 var audio = undefined;
 // var audioStream = undefined;
@@ -9,30 +9,32 @@ var audio = undefined;
 var express = require('express')
 var app = express()
 
+app.use(express.static('public'))
+
 app.get('/stream.wav', function (req, res) {
   res.set({
     'Content-Type': 'audio/wav',
     'Transfer-Encoding': 'chunked'
-  });
+  })
   if (audio) { // stop previously started audio
     stopAudio(() => {
       setTimeout(() => {
         startAudio(stream => {
           // console.log('started2');
           stream.pipe(res);
-        });
-      }, 3000);
-    });
+        })
+      }, 3000)
+    })
   } else { // cold start
     startAudio(stream => {
       // console.log('started1');
-      audio.getAudioStream().pipe(res);
-    });
+      audio.getAudioStream().pipe(res)
+    })
   }
   //    encoder.pipe(res);
-});
+})
 
-var server = app.listen(8090);
+var server = app.listen(8090)
 
 function startAudio(cb) {
   console.log('start audio');
