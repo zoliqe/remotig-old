@@ -68,7 +68,7 @@ class K2WebRTCPort {
 
   disconnect() {
     clearInterval(this._timer);
-    this.send('POWERON;');
+    this.send('POWEROFF;');
     this._webrtc.disconnect();
   }
 }

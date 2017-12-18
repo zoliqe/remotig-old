@@ -95,9 +95,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     </style>
 
     <app-location route="{{route}}"></app-location>
+    <!-- pattern="/remotig/:page" -->
     <app-route
         route="{{route}}"
-        pattern="/remotig/:page"
+        pattern="/smartceiver/:page"
         data="{{routeData}}"
         tail="{{subroute}}"></app-route>
 
@@ -106,10 +107,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       <app-drawer id="drawer" slot="drawer" swipe-open>
         <app-toolbar>Menu</app-toolbar>
         <iron-selector selected="[[page]]" attr-for-selected="name" class="drawer-list" role="navigation">
-          <a name="tune" href="/remotig/tune">Control</a>
+          <a name="tune" href="/smartceiver/tune">Control</a>
           <!--<a name="setup-rx" href="/setup-rx">Setup RX</a>-->
-          <a name="settings" href="/remotig/settings">Settings</a>
-          <a name="cwmem" href="/remotig/cwmem">CW Memories</a>
+          <a name="settings" href="/smartceiver/settings">Settings</a>
+          <a name="cwmem" href="/smartceiver/cwmem">CW Memories</a>
         </iron-selector>
       </app-drawer>
 
@@ -120,7 +121,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           <app-toolbar>
             <paper-icon-button icon="menu" drawer-toggle></paper-icon-button>
             <div main-title class="freq-display">[[freqDisplay]]</div>
-            <div>v3</div>
+            <div>v4</div>
             <paper-icon-button icon="gavel" on-tap="connectRemoddle"></paper-icon-button>
             <paper-icon-button icon="power-settings-new" on-tap="switchPower"></paper-icon-button>
           </app-toolbar>
@@ -150,6 +151,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   <script defer src="remoddle.js"></script>
   <script defer src="https://simplewebrtc.com/latest-v2.js"></script>
   <script defer src="k2-webrtc.js"></script>
+  <script defer src="k2-ws.js"></script>
+  <script defer src="wav-player.js"></script>
   <script defer src="smartceiver-webusb.js"></script>
 
   <script>

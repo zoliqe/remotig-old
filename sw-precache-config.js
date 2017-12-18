@@ -11,9 +11,9 @@
 /* eslint-env node */
 
 module.exports = {
-  cacheId: "remotig",
+  cacheId: "smartceiver",
   // stripPrefix: "smartceiver/",
-  replacePrefix: "/remotig",
+  replacePrefix: "/smartceiver",
   // stripPrefixMulti: {
   //   'smartceiver/': '',
   //   '/smartceiver/': '/',

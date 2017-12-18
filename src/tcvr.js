@@ -2,14 +2,14 @@ const _vfos = ['A', 'B'];
 const _bands = ['1.8', '3.5', '7', '10.1', '14', '18', '21', '24', '28'];
 const _bandLowEdges = [1800000, 3500000, 7000000, 10100000, 14000000, 18068000, 21000000, 24890000, 28000000];
 const _modes = ['LSB', 'USB', 'CW', 'CWR']; // order copies mode code for MDn cmd
-const _narrowFilters = ['1800', '1800', '0200', '0200']; // in _modes order
-const _wideFilters =   ['2700', '2700', '0600', '0600']; // in _modes order
+// const _narrowFilters = ['1800', '1800', '0200', '0200']; // in _modes order
+// const _wideFilters =   ['2700', '2700', '0600', '0600']; // in _modes order
 const _sidetoneFreq = 600;
 const _sidetoneLevel = 0.2;
 
 class Transceiver {
   constructor() {
-    this._connectorId = 'k2-webrtc'; // TODO configurable
+    this._connectorId = 'k2-ws'; // TODO configurable
     this._rxVfo = 0;
     this._txVfo = 0; // TODO split operation
     this._band = 2;
@@ -162,7 +162,7 @@ class Transceiver {
       if (value in _modes) {
         this._mode = value;
         this.freq = this._freq[this._band][this._mode][this._rxVfo]; // call setter
-        this._port.send("MD" + (this._mode + 1) + ";");
+        // this._port.send("MD" + (this._mode + 1) + ";");
         this.dispatchEvent(new TcvrEvent(EventType.mode, this._mode));
       }
     });
@@ -176,13 +176,13 @@ class Transceiver {
       this._freq[this._band][this._mode][this._rxVfo] = freq;
       this._d("freq", freq);
   
-      let data = "F" + _vfos[this._rxVfo]; // TODO split
-      data += "000";
-      if (freq < 10000000) { // <10MHz
-          data += "0";
-      }
-      data += freq;
-      this._port.send(data + ";");  
+      // let data = "F" + _vfos[this._rxVfo]; // TODO split
+      // data += "000";
+      // if (freq < 10000000) { // <10MHz
+      //     data += "0";
+      // }
+      // data += freq;
+      // this._port.send(data + ";");  
       this.dispatchEvent(new TcvrEvent(EventType.freq, freq));
     });
   }
@@ -194,12 +194,11 @@ class Transceiver {
     this.whenConnected(() => {
       this._wpm = wpm;
       this._d("wpm", wpm);
-      this._port.wpm = wpm;
+      // this._port.wpm = wpm;
       this.dispatchEvent(new TcvrEvent(EventType.wpm, wpm));
       if (this._remoddle) { // TODO remove after use listener
         this._remoddle.wpm = wpm; // propagate the change
       }
-    // this._port.send("KS0" + wpm + ";");
     });
   }
 
@@ -210,8 +209,8 @@ class Transceiver {
     this.whenConnected(() => {
       this._narrow = narrow;
       this._d("narrow", narrow);
-      let data = "FW" + (narrow ? _narrowFilters[this._mode] : _wideFilters[this._mode]);
-      this._port.send(data + ";");
+      // let data = "FW" + (narrow ? _narrowFilters[this._mode] : _wideFilters[this._mode]);
+      // this._port.send(data + ";");
       this.dispatchEvent(new TcvrEvent(EventType.filter, this._narrow));
     });
   }
@@ -223,7 +222,7 @@ class Transceiver {
     this.whenConnected(() => {
       this._preamp = state;
       this._d("preamp", this._preamp);
-      this._port.send("PA" + (this._preamp ? "1" : "0") + ";");
+      // this._port.send("PA" + (this._preamp ? "1" : "0") + ";");
       this.dispatchEvent(new TcvrEvent(EventType.preamp, this._preamp));
     });
   }
@@ -235,7 +234,7 @@ class Transceiver {
     this.whenConnected(() => {
       this._attn = state;
       this._d("attn", this._attn);
-      this._port.send("RA0" + (this._attn ? "1" : "0") + ";");
+      // this._port.send("RA0" + (this._attn ? "1" : "0") + ";");
       this.dispatchEvent(new TcvrEvent(EventType.attn, this._attn));
     });
   }

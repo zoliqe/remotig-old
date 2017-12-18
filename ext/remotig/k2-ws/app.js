@@ -2,6 +2,8 @@
 var mic = require('mic')
 var fs = require('fs')
 
+let port = 8090
+
 var audio = undefined;
 // var audioStream = undefined;
 
@@ -9,7 +11,7 @@ var audio = undefined;
 var express = require('express')
 var app = express()
 
-app.use(express.static('public'))
+app.use('/smartceiver', express.static('public'))
 
 app.get('/stream.wav', function (req, res) {
   res.set({
@@ -34,7 +36,7 @@ app.get('/stream.wav', function (req, res) {
   //    encoder.pipe(res);
 })
 
-var server = app.listen(8090)
+var server = app.listen(port, () => console.log('Listening on port ' + port))
 
 function startAudio(cb) {
   console.log('start audio');
