@@ -1,15 +1,24 @@
-//var lame = require('lame');
-var mic = require('mic')
-var fs = require('fs')
-
 let port = 8090
+let serialPath = '/dev/ttyUSB0'
+let SerialPort = require('serialport')
+let serial = new SerialPort(serialPath, {baudRate: 115200})
+serial.on('open', () => console.log('SerialPort opened:', serialPath))
+serial.on('error', err => {
+  if (err) {
+    console.log('SerialPort error:', err.message)
+  }
+})
+serial.on('data', data => console.log('SerialPort:', data))
 
-var audio = undefined;
-// var audioStream = undefined;
+//var lame = require('lame');
+let mic = require('mic')
+let fs = require('fs')
 
+let audio = undefined
 // set up an express app
-var express = require('express')
-var app = express()
+let express = require('express')
+let app = express()
+let expressWs = require('express-ws')(app)
 
 app.use('/smartceiver', express.static('public'))
 
@@ -19,11 +28,12 @@ app.get('/stream.wav', function (req, res) {
     'Transfer-Encoding': 'chunked'
   })
   if (audio) { // stop previously started audio
+    //audio.getAudioStream().pipe(res)
     stopAudio(() => {
       setTimeout(() => {
         startAudio(stream => {
           // console.log('started2');
-          stream.pipe(res);
+          stream.pipe(res)
         })
       }, 3000)
     })
@@ -36,10 +46,17 @@ app.get('/stream.wav', function (req, res) {
   //    encoder.pipe(res);
 })
 
-var server = app.listen(port, () => console.log('Listening on port ' + port))
+app.ws('/ctl', function(ws, req) {
+  ws.on('message', msg => {
+    console.log(msg)
+    serial.write(msg)
+  })
+})
+
+let server = app.listen(port, () => console.log('Listening on port ' + port))
 
 function startAudio(cb) {
-  console.log('start audio');
+  console.log('start audio')
   audio = mic({
     device: 'plughw:0,0',
     rate: '8000',
@@ -47,26 +64,26 @@ function startAudio(cb) {
     fileType: 'wav',
     debug: true,
     // exitOnSilence: 6
-  });
+  })
 
   // audioStream = audio.getAudioStream();
   audio.getAudioStream().on('startComplete', () => {
     // console.log('startComplete');
-    cb(audio.getAudioStream());
-  });
+    cb(audio.getAudioStream())
+  })
 
-  audio.start();
+  audio.start()
 }
 
 function stopAudio(cb) {
   console.log('stop audio');
   audio.getAudioStream().on('stopComplete', () => {
     // audioStream = undefined;
-    audio = undefined;
-    cb();
-  });
+    audio = undefined
+    cb()
+  })
 
-  audio.stop();
+  audio.stop()
 }
 
 //input.pipe(encoder);

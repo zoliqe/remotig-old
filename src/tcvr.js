@@ -63,7 +63,6 @@ class Transceiver {
         this.narrow = this._narrow;
         this.preamp = this._preamp;
         this.attn = this._attn;
-//         this._attachKeying();
       });
     }
   }
@@ -78,25 +77,9 @@ class Transceiver {
       new Remoddle(this).connect(remoddle => {
         this._remoddle = remoddle;
         remoddle.wpm = this.wpm; // sync with current wpm state
-        // this._attachKeying();
       });
     }
   }
-
-  // _attachKeying() {
-  //   // this.whenConnected(() => {
-  //     if (this._remoddle) { // TODO remove
-  //         this._remoddle.onDit = () => {
-  //         this._port.sendDit();
-  //         this._tone(1);
-  //       };
-  //       this._remoddle.onDah = () => {
-  //         this._port.sendDah();
-  //         this._tone(3);
-  //       };
-  //     }
-  //   // });
-  // }
 
   _tone(len) {
     if (this._bfoAmp) {
@@ -175,14 +158,6 @@ class Transceiver {
     this.whenConnected(() => {
       this._freq[this._band][this._mode][this._rxVfo] = freq;
       this._d("freq", freq);
-  
-      // let data = "F" + _vfos[this._rxVfo]; // TODO split
-      // data += "000";
-      // if (freq < 10000000) { // <10MHz
-      //     data += "0";
-      // }
-      // data += freq;
-      // this._port.send(data + ";");  
       this.dispatchEvent(new TcvrEvent(EventType.freq, freq));
     });
   }
@@ -194,11 +169,7 @@ class Transceiver {
     this.whenConnected(() => {
       this._wpm = wpm;
       this._d("wpm", wpm);
-      // this._port.wpm = wpm;
       this.dispatchEvent(new TcvrEvent(EventType.wpm, wpm));
-      if (this._remoddle) { // TODO remove after use listener
-        this._remoddle.wpm = wpm; // propagate the change
-      }
     });
   }
 
@@ -222,7 +193,6 @@ class Transceiver {
     this.whenConnected(() => {
       this._preamp = state;
       this._d("preamp", this._preamp);
-      // this._port.send("PA" + (this._preamp ? "1" : "0") + ";");
       this.dispatchEvent(new TcvrEvent(EventType.preamp, this._preamp));
     });
   }
@@ -234,7 +204,6 @@ class Transceiver {
     this.whenConnected(() => {
       this._attn = state;
       this._d("attn", this._attn);
-      // this._port.send("RA0" + (this._attn ? "1" : "0") + ";");
       this.dispatchEvent(new TcvrEvent(EventType.attn, this._attn));
     });
   }
@@ -246,7 +215,6 @@ class Transceiver {
     this.whenConnected(() => {
       this._txEnabled = txEnabled;
       this._d("txEnabled", txEnabled);
-  
       // let data = "KE" + (txEnabled ? "1" : "0");
       // this._port.send(data + ";");
     });
@@ -259,7 +227,6 @@ class Transceiver {
     this.whenConnected(() => {
       this._autoSpace = autoSpace;
       this._d("autoSpace", autoSpace);
-  
       // let data = "KA" + (autoSpace ? "1" : "0");
       // this._port.send(data + ";");
     });
@@ -272,7 +239,6 @@ class Transceiver {
     this.whenConnected(() => {
       this._txKeyed = txKeyed;
       this._d("txKeyed", txKeyed);
-  
       // let data = "KT" + (txKeyed ? "1" : "0");
       // this._port.send(data + ";");
     });
@@ -290,6 +256,10 @@ class Transceiver {
       this._bfoAmp = undefined;
       this._bfo.stop();
     }
+  }
+
+  get sidetoneFreq() {
+    return _sidetoneFreq
   }
 
   addEventListener(type, callback) {
@@ -328,7 +298,6 @@ class Transceiver {
   }
 }
 
-// TODO propagete changes via event listeners
 class TcvrEvent {
   constructor(type, value) {
     this._type = type;
@@ -340,41 +309,6 @@ class TcvrEvent {
 
 const EventType = Object.freeze({freq: 1, wpm: 2, mode: 3, vfo: 4, filter: 5, preamp: 6, attn: 7, keyDit: 8, keyDah: 9});
 
-// class TcvrEventTarget {
-//   constructor() {
-//     this.listeners = {};
-//   }
-
-//   addEventListener(type, callback) {
-//     if (!(type in this.listeners)) {
-//       this.listeners[type] = [];
-//     }
-//     this.listeners.push(callback);
-//   }
-
-//   removeEventListener(type, callback) {
-//     if (!(type in this.listeners)) {
-//       return;
-//     }
-//     let stack = this.listeners[type];
-//     for (let i = 0, l = stack.length; i < l; i++) {
-//       if (stack[i] === callback) {
-//         stack.splice(i, 1);
-//         return;
-//       }
-//     }
-//   }
-
-//   dispatchEvent(event) {
-//     if (!(event.type in this.listeners)) {
-//       return true;
-//     }
-//     let stack = this.listeners[event.type];
-//     stack.forEach(callback => callback.call(this, event));
-//     return !event.defaultPrevented;
-//   }
-// }
-
 class ConnectorRegister {
   constructor() {
     this._reg = {};
@@ -383,10 +317,6 @@ class ConnectorRegister {
   register(connector) {
     this._reg[connector.constructor.id] = connector;
   }
-
-//   get(index) {
-//     return this._reg[index];
-//   }
 
   get(id) {
     return this._reg[id];
@@ -398,33 +328,3 @@ class ConnectorRegister {
 }
 
 var tcvrConnectors = new ConnectorRegister();
-
-    // this._freq = {
-    //   "1.8": 
-    //     {"CW": {"A": 1820000, "B": 1820000}, "CWR": {"A": 1820000, "B": 1820000}, 
-    //      "LSB": {"A": 1880000, "B": 1880000}, "USB": {"A": 1880000, "B": 1880000}},
-    //   "3.5":
-    //     {"CW": {"A": 3520000, "B": 3520000}, "CWR": {"A": 3520000, "B": 3520000}, 
-    //      "LSB": {"A": 3750000, "B": 3750000}, "USB": {"A": 3750000, "B": 3750000}},
-    //   "7":
-    //     {"CW": {"A": 7020000, "B": 7020000}, "CWR": {"A": 7020000, "B": 7020000}, 
-    //      "LSB": {"A": 7080000, "B": 7080000}, "USB": {"A": 7080000, "B": 7080000}},
-    //   "10.1":
-    //     {"CW": {"A": 10120000, "B": 10120000}, "CWR": {"A": 10120000, "B": 10120000}, 
-    //      "LSB": {"A": 10120000, "B": 10120000}, "USB": {"A": 10120000, "B": 10120000}},
-    //   "14":
-    //     {"CW": {"A": 14020000, "B": 14020000}, "CWR": {"A": 14020000, "B": 14020000}, 
-    //      "LSB": {"A": 14100000, "B": 14100000}, "USB": {"A": 14100000, "B": 14100000}},
-    //   "18":
-    //     {"CW": {"A": 18080000, "B": 18080000}, "CWR": {"A": 18080000, "B": 18080000}, 
-    //      "LSB": {"A": 18100000, "B": 18100000}, "USB": {"A": 18100000, "B": 18100000}},
-    //   "21":
-    //     {"CW": {"A": 21020000, "B": 21020000}, "CWR": {"A": 21020000, "B": 21020000}, 
-    //      "LSB": {"A": 21100000, "B": 21100000}, "USB": {"A": 21100000, "B": 21100000}},
-    //   "24":
-    //     {"CW": {"A": 24920000, "B": 24920000}, "CWR": {"A": 24920000, "B": 24920000}, 
-    //      "LSB": {"A": 24920000, "B": 24920000}, "USB": {"A": 24920000, "B": 24920000}},
-    //   "28":
-    //     {"CW": {"A": 28020000, "B": 28020000}, "CWR": {"A": 28020000, "B": 28020000}, 
-    //      "LSB": {"A": 28100000, "B": 28100000}, "USB": {"A": 28100000, "B": 28100000}}
-    // };
