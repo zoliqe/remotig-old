@@ -27,13 +27,13 @@ class K2WebSocketsConnector {
       // this.player.setFilter('lowpass', _wideFilters[this._mode], 1)
       setTimeout(() => {
         this._timer = setInterval(() => this.send('POWER1;'), 10000)
-        tcvr.addEventListener(EventType.keyDit, event => this.send(".;"))
-        tcvr.addEventListener(EventType.keyDah, event => this.send("-;"))
-        tcvr.addEventListener(EventType.mode, event => {
+        tcvr.addEventListener(EventType.keyDit, this.constructor.id, event => this.send(".;"))
+        tcvr.addEventListener(EventType.keyDah, this.constructor.id, event => this.send("-;"))
+        tcvr.addEventListener(EventType.mode, this.constructor.id, event => {
           this._mode = event.value
           this.send("MD" + (this._mode + 1) + ";")
         })
-        tcvr.addEventListener(EventType.freq, event => {
+        tcvr.addEventListener(EventType.freq, this.constructor.id, event => {
           let freq = event.value
           let data = "FA" // + _vfos[this._rxVfo]; // TODO split
           data += "000"
@@ -43,16 +43,16 @@ class K2WebSocketsConnector {
           data += freq
           this.send(data + ";")
         })
-        tcvr.addEventListener(EventType.wpm, event => this.send("KS0" + event.value + ";"))
-        tcvr.addEventListener(EventType.filter, event => {
+        tcvr.addEventListener(EventType.wpm, this.constructor.id, event => this.send("KS0" + event.value + ";"))
+        tcvr.addEventListener(EventType.filter, this.constructor.id, event => {
           let freq = event.value ? _narrowFilters[this._mode] : _wideFilters[this._mode]
           console.log('filterFreq=' + freq)
           this.player.setFilter('bandpass', tcvr.sidetoneFreq, tcvr.sidetoneFreq / freq)
           // let data = "FW" + freq
           // this.send(data + ";")
         })
-        tcvr.addEventListener(EventType.preamp, event => this.send("PA" + (event.value ? "1" : "0") + ";"))
-        tcvr.addEventListener(EventType.attn, event => this.send("RA0" + (event.value ? "1" : "0") + ";"))
+        tcvr.addEventListener(EventType.preamp, this.constructor.id, event => this.send("PA" + (event.value ? "1" : "0") + ";"))
+        tcvr.addEventListener(EventType.attn, this.constructor.id, event => this.send("RA0" + (event.value ? "1" : "0") + ";"))
         
         successCallback(this);
       }, 5000) // delay for tcvr-init after poweron 

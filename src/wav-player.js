@@ -122,8 +122,8 @@ var WavPlayer = function WavPlayer() {
             var rest = null;
 
             var isFirstBuffer = true;
-            var numberOfChannels = void 0,
-                sampleRate = void 0;
+            var numberOfChannels = 1,
+                sampleRate = 8000;
 
             var read = function read() {
                 return reader.read().then(function (_ref) {
@@ -164,8 +164,8 @@ var WavPlayer = function WavPlayer() {
 
                                 var dataView = new DataView(buffer);
 
-                                numberOfChannels = dataView.getUint16(22, true);
-                                sampleRate = dataView.getUint32(24, true);
+                                // numberOfChannels = dataView.getUint16(22, true);
+                                // sampleRate = dataView.getUint32(24, true);
 
                                 buffer = buffer.slice(44);
                             }

@@ -13,7 +13,7 @@
 module.exports = {
   cacheId: "smartceiver",
   // stripPrefix: "smartceiver/",
-  replacePrefix: "/smartceiver",
+  replacePrefix: "/smartceiver/",
   // stripPrefixMulti: {
   //   'smartceiver/': '',
   //   '/smartceiver/': '/',

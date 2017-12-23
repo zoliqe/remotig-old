@@ -19,8 +19,10 @@ class Remoddle {
           console.log('Receive error: ' + error);
         };
         this._port = selectedPort;
-        this._tcvr.addEventListener(EventType.wpm, event => this._port.send("KS0" + event.value + ";"))
-        successCallback(this);
+        if (this._port && this._tcvr) {
+          this._tcvr.addEventListener(EventType.wpm, this.constructor.id, event => this._port.send("KS0" + event.value + ";"))
+          successCallback(this);
+        }
       }, error => {
          console.log('Connection error (2): ' + error);
       });
@@ -59,6 +61,9 @@ class Remoddle {
   // }
 
   _evaluate(data) {
+    if ( ! this._tcvr) {
+      return
+    }
     for (let i = 0; i < data.length; i++) {
       let element = data[i];
       if (element == '-') {

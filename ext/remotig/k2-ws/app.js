@@ -22,26 +22,29 @@ let expressWs = require('express-ws')(app)
 
 app.use('/smartceiver', express.static('public'))
 
+// startAudio(stream => app.get('/stream.wav', (req, res) => {
+//   res.set({
+//     'Content-Type': 'audio/wav',
+//     'Transfer-Encoding': 'chunked'
+//   })
+//   stream.read() // flush
+//   stream.pipe(res)
+// }))
 app.get('/stream.wav', function (req, res) {
   res.set({
     'Content-Type': 'audio/wav',
     'Transfer-Encoding': 'chunked'
   })
   if (audio) { // stop previously started audio
-    //audio.getAudioStream().pipe(res)
-    stopAudio(() => {
-      setTimeout(() => {
-        startAudio(stream => {
-          // console.log('started2');
-          stream.pipe(res)
-        })
-      }, 3000)
-    })
+    stopAudio()
+    startAudio(stream => stream.pipe(res))
+    // stopAudio(() => {
+    //   setTimeout(() => {
+    //     startAudio(stream => stream.pipe(res))
+    //   }, 3000)
+    // })
   } else { // cold start
-    startAudio(stream => {
-      // console.log('started1');
-      audio.getAudioStream().pipe(res)
-    })
+    startAudio(stream => stream.pipe(res))
   }
   //    encoder.pipe(res);
 })
@@ -55,8 +58,9 @@ app.ws('/ctl', function(ws, req) {
 
 let server = app.listen(port, () => console.log('Listening on port ' + port))
 
-function startAudio(cb) {
+async function startAudio(cb) {
   console.log('start audio')
+  await sleep(1000)
   audio = mic({
     device: 'plughw:0,0',
     rate: '8000',
@@ -77,13 +81,16 @@ function startAudio(cb) {
 
 function stopAudio(cb) {
   console.log('stop audio');
-  audio.getAudioStream().on('stopComplete', () => {
+  audio.stop()
+  // audio.getAudioStream().on('stopComplete', () => {
     // audioStream = undefined;
     audio = undefined
-    cb()
-  })
+    // cb()
+  // })
+}
 
-  audio.stop()
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 //input.pipe(encoder);

@@ -29,12 +29,12 @@ class K2WebRTCConnector {
         webrtc.pauseVideo();
         let port = new K2WebRTCPort(webrtc);
         setTimeout(() => {
-          port.send('USESEMICOLON;');
-          port.send('POWERON;');
+          port.send('SEMICOL1;');
+          port.send('POWER1;');
           setTimeout(() => {
             port._timer = setInterval(() => port.send('POWERON;'), 10000);
-            tcvr.addEventListener(EventType.keyDit, event => port._sendDit());
-            tcvr.addEventListener(EventType.keyDah, event => port._sendDah());
+            tcvr.addEventListener(EventType.keyDit, this.constructor.id, event => port._sendDit());
+            tcvr.addEventListener(EventType.keyDah, this.constructor.id, event => port._sendDah());
             
             successCallback(port);
           }, 5000); // delay for tcvr-init after poweron 

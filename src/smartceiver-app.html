@@ -121,8 +121,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           <app-toolbar>
             <paper-icon-button icon="menu" drawer-toggle></paper-icon-button>
             <div main-title class="freq-display">[[freqDisplay]]</div>
-            <div>v5</div>
-            <paper-icon-button icon="gavel" on-tap="connectRemoddle"></paper-icon-button>
+            <div>v10</div>
+            <!-- <paper-icon-button icon="gavel" on-tap="connectRemoddle"></paper-icon-button> -->
             <paper-icon-button icon="power-settings-new" on-tap="switchPower"></paper-icon-button>
           </app-toolbar>
         </app-header>
@@ -182,8 +182,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       constructor() {
         super();
-        this.tcvr = new Transceiver();
-        this.tcvr.addEventListener(EventType.freq, event => this._freqChanged(event.value)); // listen for freq changes on mode/band change
+        document.tcvr = this.tcvr = new Transceiver();
+        this.tcvr.addEventListener(EventType.freq, 'ui', event => this._freqChanged(event.value)); // listen for freq changes on mode/band change
       }
 
       _freqChanged(freq) {
@@ -219,9 +219,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this.tcvr.switchPower();
       }
 
-      connectRemoddle() {
-        this.tcvr.connectRemoddle();
-      }
+      // connectRemoddle() {
+      //   this.tcvr.connectRemoddle();
+      // }
 
       _routePageChanged(page) {
         // Polymer 2.0 will call with `undefined` on initialization.

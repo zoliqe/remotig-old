@@ -40,19 +40,23 @@ class Transceiver {
     // this._buildBFO();
     
     this._listeners = {};
-    this.addEventListener(EventType.keyDit, event => this._tone(1));
-    this.addEventListener(EventType.keyDah, event => this._tone(3));
+    this.addEventListener(EventType.keyDit, 'tcvr', event => this._tone(1));
+    this.addEventListener(EventType.keyDah, 'tcvr', event => this._tone(3));
     this._d("tcvr-init", "done");
   }
 
   switchPower() {
     if (this._port) {
+      this._d("disconnect", true);
+      this.removeEventListenersFor(this._port.constructor.id)
       this._port.disconnect();
       this._port = undefined;
-      this._d("disconnect", true);
+      this._disconnectRemoddle()
     } else {
       console.log('connect');
-      tcvrConnectors.get(this._connectorId).connect(this, (port) => {
+      let connector = tcvrConnectors.get(this._connectorId);
+      this._connectRemoddle(connector)
+      connector.connect(this, (port) => {
         this._port = port;
         // reset tcvr configuration
         this.freq = this._freq[this._band][this._mode][this._rxVfo];
@@ -67,19 +71,40 @@ class Transceiver {
     }
   }
 
-  connectRemoddle() {
+  _connectRemoddle(connector) {
+    if ( ! connector.constructor.capabilities.includes(Remoddle.id)) {
+      return
+    }
     if (this._remoddle) {
+      this._disconnectRemoddle()
+    }
+    new Remoddle(this).connect(remoddle => {
+      this._remoddle = remoddle;
+      remoddle.wpm = this.wpm; // sync with current wpm state
+    });
+  }
+
+  _disconnectRemoddle() {
+    if (this._remoddle) {
+      this.removeEventListenersFor(this._remoddle.constructor.id)
       this._remoddle.disconnect();
       this._remoddle = undefined;
-      return;
-    }
-    if (tcvrConnectors.get(this._connectorId).constructor.capabilities.includes(Remoddle.id)) {
-      new Remoddle(this).connect(remoddle => {
-        this._remoddle = remoddle;
-        remoddle.wpm = this.wpm; // sync with current wpm state
-      });
     }
   }
+
+  // connectRemoddle() {
+  //   if (this._remoddle) {
+  //     this._remoddle.disconnect();
+  //     this._remoddle = undefined;
+  //     return;
+  //   }
+  //   if (connector.constructor.capabilities.includes(Remoddle.id)) {
+  //     new Remoddle(this).connect(remoddle => {
+  //       this._remoddle = remoddle;
+  //       remoddle.wpm = this.wpm; // sync with current wpm state
+  //     });
+  //   }
+  // }
 
   _tone(len) {
     if (this._bfoAmp) {
@@ -262,34 +287,29 @@ class Transceiver {
     return _sidetoneFreq
   }
 
-  addEventListener(type, callback) {
+  addEventListener(type, owner, callback) {
     if (!(type in this._listeners)) {
       this._listeners[type] = [];
     }
-    this._listeners[type].push(callback);
-    this._d("addEventListener: " + type + ", callbacks:", this._listeners[type].length);
+    this._listeners[type].push(new EventListener(owner, callback));
+    this._d("addEventListener: " + type + ", for " + owner + ", callbacks:", this._listeners[type].length);
   }
 
-  removeEventListener(type, callback) {
-    if (!(type in this._listeners)) {
-      return;
-    }
-    let stack = this._listeners[type];
-    for (let i = 0, l = stack.length; i < l; i++) {
-      if (stack[i] === callback) {
-        stack.splice(i, 1);
-        this._d("removeEventListener: " + type + ", callbacks:", stack.length);
-        return;
+  removeEventListenersFor(owner) {
+    for (let type in this._listeners) {
+      let stack = this._listeners[type];
+      for (let i = 0, l = stack.length; i < l; i++) {
+        if (stack[i].owner == owner) {
+          this._d("removeEventListener for " + owner + " type", type);
+          stack.splice(i, 1);
+        }
       }
     }
   }
 
   dispatchEvent(event) {
-    if (!(event.type in this._listeners)) {
-      return true;
-    }
     let stack = this._listeners[event.type];
-    stack.forEach(callback => callback.call(this, event));
+    stack.forEach(listenner => listenner.callback.call(this, event));
     return true;//!event.defaultPrevented;
   }
 
@@ -300,31 +320,31 @@ class Transceiver {
 
 class TcvrEvent {
   constructor(type, value) {
-    this._type = type;
-    this._value = value;
+    this._type = type
+    this._value = value
   }
-  get type() { return this._type; }
-  get value() { return this._value; }
+  get type() { return this._type }
+  get value() { return this._value }
 }
 
-const EventType = Object.freeze({freq: 1, wpm: 2, mode: 3, vfo: 4, filter: 5, preamp: 6, attn: 7, keyDit: 8, keyDah: 9});
+class EventListener {
+  constructor(owner, callback) {
+    this._owner = owner
+    this._callback = callback
+  }
+  get owner() { return this._owner }
+  get callback() { return this._callback }
+}
+
+const EventType = Object.freeze({freq: 1, wpm: 2, mode: 3, vfo: 4, filter: 5, preamp: 6, attn: 7, keyDit: 8, keyDah: 9})
 
 class ConnectorRegister {
-  constructor() {
-    this._reg = {};
-  }
+  constructor() { this._reg = {} }
 
-  register(connector) {
-    this._reg[connector.constructor.id] = connector;
-  }
+  register(connector) { this._reg[connector.constructor.id] = connector }
+  get(id) { return this._reg[id] }
 
-  get(id) {
-    return this._reg[id];
-  }
-
-  get all() {
-    return Object.values(this._reg);
-  }
+  get all() { return Object.values(this._reg) }
 }
 
 var tcvrConnectors = new ConnectorRegister();
