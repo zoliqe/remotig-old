@@ -55,7 +55,7 @@ class Transceiver {
     } else {
       console.log('connect');
       let connector = tcvrConnectors.get(this._connectorId);
-      this._connectRemoddle(connector)
+      // this._connectRemoddle(connector)
       connector.connect(this, (port) => {
         this._port = port;
         // reset tcvr configuration

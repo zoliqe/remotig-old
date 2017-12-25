@@ -1,5 +1,5 @@
 // const _modes = ['LSB', 'USB', 'CW', 'CWR']; // order copies mode code for MDn cmd
-const _narrowFilters = [1800, 1800, 300, 300]; // in _modes order
+const _narrowFilters = [1800, 1800, 100, 100]; // in _modes order
 const _wideFilters =   [2700, 2700, 1000, 1000]; // in _modes order
 
 class K2WebSocketsConnector {
@@ -45,9 +45,9 @@ class K2WebSocketsConnector {
         })
         tcvr.addEventListener(EventType.wpm, this.constructor.id, event => this.send("KS0" + event.value + ";"))
         tcvr.addEventListener(EventType.filter, this.constructor.id, event => {
-          let freq = event.value ? _narrowFilters[this._mode] : _wideFilters[this._mode]
-          console.log('filterFreq=' + freq)
-          this.player.setFilter('bandpass', tcvr.sidetoneFreq, tcvr.sidetoneFreq / freq)
+          let bandWidth = event.value ? _narrowFilters[this._mode] : _wideFilters[this._mode]
+          console.log('bandWidth=' + bandWidth)
+          this.player.setFilter(tcvr.sidetoneFreq, bandWidth)
           // let data = "FW" + freq
           // this.send(data + ";")
         })

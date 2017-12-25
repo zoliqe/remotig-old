@@ -3,7 +3,7 @@
 BROOT="build/bundled"
 BPROJ="${BROOT}"
 
-DPROJ="ext/remotig/k2-ws/public"
+DPROJ="ext/remotig/node-ws/public"
 
 polymer build
 

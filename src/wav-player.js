@@ -55,7 +55,7 @@ var pad = function pad(buffer) {
 
 var WavPlayer = function WavPlayer() {
     var context = void 0;
-    let filter = undefined;
+    let bpf = undefined;
 
     var hasCanceled_ = false;
 
@@ -68,7 +68,15 @@ var WavPlayer = function WavPlayer() {
         hasCanceled_ = false;
 
         context = new AudioContext();
-        filter = context.createBiquadFilter();
+        lpf = context.createBiquadFilter()
+        lpf.type = 'lowpass'
+        lpf.frequency.value = 700
+        hpf = context.createBiquadFilter()
+        hpf.type = 'highpass'
+        hpf.frequency.value = 400
+        bpf = context.createBiquadFilter()
+        bpf.type = 'bandpass'
+        bpf.frequency.value = 600
 
         var scheduleBuffersTimeoutId = null;
 
@@ -87,8 +95,10 @@ var WavPlayer = function WavPlayer() {
                 var segment = audioStack.shift();
 
                 source.buffer = pad(segment.buffer);
-                source.connect(filter);
-                filter.connect(context.destination);
+                source.connect(lpf)
+                lpf.connect(hpf)
+                hpf.connect(bpf)
+                bpf.connect(context.destination);
 
                 if (nextTime == 0) {
                     nextTime = currentTime + 0.8; /// add 700ms latency to work well across systems - tune this if you like
@@ -164,8 +174,8 @@ var WavPlayer = function WavPlayer() {
 
                                 var dataView = new DataView(buffer);
 
-                                // numberOfChannels = dataView.getUint16(22, true);
-                                // sampleRate = dataView.getUint32(24, true);
+                                numberOfChannels = dataView.getUint16(22, true);
+                                sampleRate = dataView.getUint32(24, true);
 
                                 buffer = buffer.slice(44);
                             }
@@ -217,10 +227,11 @@ var WavPlayer = function WavPlayer() {
                 context.close();
             }
         },
-        setFilter: function setFilter(filterType, filterFreq, filterQ) {
-            filter.type = filterType;
-            filter.frequency.value = filterFreq;
-            filter.Q.value = filterQ;    
+        setFilter: function setFilter(centerFreq, bandWidth) {
+            // bpf.type = filterType
+            lpf.frequency.value = centerFreq + (bandWidth / 2)
+            bpf.frequency.value = centerFreq
+            bpf.Q.value = (centerFreq / bandWidth) * 2
         }
     };
 };

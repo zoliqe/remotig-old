@@ -1,7 +1,7 @@
 {
-  "name": "remotig-k2-ws",
+  "name": "remotig-node-ws",
   "version": "1.0.0",
-  "description": "Share ElecraftK2 transceiver via WebSockets to Smartceiver app",
+  "description": "Share amateur radio transceiver via WebSockets to Smartceiver app",
   "main": "app.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
