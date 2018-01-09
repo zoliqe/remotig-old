@@ -2,14 +2,16 @@ const _vfos = ['A', 'B'];
 const _bands = ['1.8', '3.5', '7', '10.1', '14', '18', '21', '24', '28'];
 const _bandLowEdges = [1800000, 3500000, 7000000, 10100000, 14000000, 18068000, 21000000, 24890000, 28000000];
 const _modes = ['LSB', 'USB', 'CW', 'CWR']; // order copies mode code for MDn cmd
+const _narrowFilters = [1800, 1800, 100, 100]; // in _modes order
+const _wideFilters =   [2700, 2700, 1000, 1000]; // in _modes order
 // const _narrowFilters = ['1800', '1800', '0200', '0200']; // in _modes order
 // const _wideFilters =   ['2700', '2700', '0600', '0600']; // in _modes order
 const _sidetoneFreq = 600;
 const _sidetoneLevel = 0.2;
+// const selectedConnector = 'k2-ws';
 
 class Transceiver {
   constructor() {
-    this._connectorId = 'k2-ws'; // TODO configurable
     this._rxVfo = 0;
     this._txVfo = 0; // TODO split operation
     this._band = 2;
@@ -54,7 +56,8 @@ class Transceiver {
       this._disconnectRemoddle()
     } else {
       console.log('connect');
-      let connector = tcvrConnectors.get(this._connectorId);
+      let connectorId = typeof selectedConnector === 'undefined' ? SmartceiverWebUSBConnector.id : selectedConnector
+      let connector = tcvrConnectors.get(connectorId);
       // this._connectRemoddle(connector)
       connector.connect(this, (port) => {
         this._port = port;
@@ -205,9 +208,8 @@ class Transceiver {
     this.whenConnected(() => {
       this._narrow = narrow;
       this._d("narrow", narrow);
-      // let data = "FW" + (narrow ? _narrowFilters[this._mode] : _wideFilters[this._mode]);
-      // this._port.send(data + ";");
-      this.dispatchEvent(new TcvrEvent(EventType.filter, this._narrow));
+      let bandwidth = narrow ? _narrowFilters[this._mode] : _wideFilters[this._mode]
+      this.dispatchEvent(new TcvrEvent(EventType.filter, bandwidth));
     });
   }
 

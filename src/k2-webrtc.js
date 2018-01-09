@@ -32,16 +32,39 @@ class K2WebRTCConnector {
           port.send('SEMICOL1;');
           port.send('POWER1;');
           setTimeout(() => {
-            port._timer = setInterval(() => port.send('POWERON;'), 10000);
-            tcvr.addEventListener(EventType.keyDit, this.constructor.id, event => port._sendDit());
-            tcvr.addEventListener(EventType.keyDah, this.constructor.id, event => port._sendDah());
-            
+            port._startPowerOnTimer(10000)
+            this._bindCommands(tcvr, port)
             successCallback(port);
           }, 5000); // delay for tcvr-init after poweron 
         }, 3000); // delay for webrtc peer connection establish
       }
     }));
   }
+
+  _bindCommands(tcvr, port) {
+    tcvr.addEventListener(EventType.keyDit, this.constructor.id, event => port.send(".;"))
+    tcvr.addEventListener(EventType.keyDah, this.constructor.id, event => port.send("-;"))
+    tcvr.addEventListener(EventType.mode, this.constructor.id, event => port.send("MD" + (event.value + 1) + ";"))
+    tcvr.addEventListener(EventType.freq, this.constructor.id, event => {
+      let freq = event.value
+      let data = "FA" // + _vfos[this._rxVfo]; // TODO split
+      data += "000"
+      if (freq < 10000000) { // <10MHz
+          data += "0"
+      }
+      data += freq
+      port.send(data + ";")
+    })
+    tcvr.addEventListener(EventType.wpm, this.constructor.id, event => port.send("KS0" + event.value + ";"))
+    tcvr.addEventListener(EventType.filter, this.constructor.id, event => {
+      // console.log('bandWidth=' + bandWidth)
+      // TODO this.player.setFilter(tcvr.sidetoneFreq, event.value)
+      // port.send((event.value < 1000 ? "FW0" : "FW") + event.value + ";")
+    })
+    tcvr.addEventListener(EventType.preamp, this.constructor.id, event => port.send("PA" + (event.value ? "1" : "0") + ";"))
+    tcvr.addEventListener(EventType.attn, this.constructor.id, event => port.send("RA0" + (event.value ? "1" : "0") + ";"))
+  }
+
 }
 
 class K2WebRTCPort {
@@ -49,17 +72,21 @@ class K2WebRTCPort {
     this._webrtc = webrtc;
   }
 
-  set wpm(val) {
-    this.send("KS0" + val + ";");
+  _startPowerOnTimer(interval) {
+    this._timer = setInterval(() => this.send('POWER1;'), interval);
   }
 
-  _sendDit() {
-    this.send(".;");
-  }
+  // set wpm(val) {
+  //   this.send("KS0" + val + ";");
+  // }
 
-  _sendDah() {
-    this.send("-;");
-  }
+  // _sendDit() {
+  //   this.send(".;");
+  // }
+
+  // _sendDah() {
+  //   this.send("-;");
+  // }
 
   send(data) {
     // https://stackoverflow.com/questions/37891029/usage-example-of-senddirectlytoall-of-simplewebrtc

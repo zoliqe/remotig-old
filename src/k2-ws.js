@@ -1,6 +1,3 @@
-// const _modes = ['LSB', 'USB', 'CW', 'CWR']; // order copies mode code for MDn cmd
-const _narrowFilters = [1800, 1800, 100, 100]; // in _modes order
-const _wideFilters =   [2700, 2700, 1000, 1000]; // in _modes order
 
 class K2WebSocketsConnector {
   static get id() { return 'k2-ws'; }
@@ -8,7 +5,6 @@ class K2WebSocketsConnector {
   static get capabilities() { return [Remoddle.id]; }
 
   constructor() {
-    this._mode = 2
   }
 
   connect(tcvr, successCallback) {
@@ -16,63 +12,79 @@ class K2WebSocketsConnector {
     console.log('connecting ' + url)
     let ws = new WebSocket(url)
     ws.onopen = (evt) => {
-      this.ws = ws;
+      // this.ws = ws;
+      let port = new K2WebSocketsPort(ws)
       console.log('ok, powering on')
-      this.send('SEMICOL1;')
-      this.send('POWER1;')
+      port.send('SEMICOL1;')
+      port.send('POWER1;')
+      port._playStream('/stream.wav')
       
-      console.log('playing RX stream')
-      this.player = new WavPlayer()
-      this.player.play('/stream.wav')
-      // this.player.setFilter('lowpass', _wideFilters[this._mode], 1)
       setTimeout(() => {
-        this._timer = setInterval(() => this.send('POWER1;'), 10000)
-        tcvr.addEventListener(EventType.keyDit, this.constructor.id, event => this.send(".;"))
-        tcvr.addEventListener(EventType.keyDah, this.constructor.id, event => this.send("-;"))
-        tcvr.addEventListener(EventType.mode, this.constructor.id, event => {
-          this._mode = event.value
-          this.send("MD" + (this._mode + 1) + ";")
-        })
-        tcvr.addEventListener(EventType.freq, this.constructor.id, event => {
-          let freq = event.value
-          let data = "FA" // + _vfos[this._rxVfo]; // TODO split
-          data += "000"
-          if (freq < 10000000) { // <10MHz
-              data += "0"
-          }
-          data += freq
-          this.send(data + ";")
-        })
-        tcvr.addEventListener(EventType.wpm, this.constructor.id, event => this.send("KS0" + event.value + ";"))
-        tcvr.addEventListener(EventType.filter, this.constructor.id, event => {
-          let bandWidth = event.value ? _narrowFilters[this._mode] : _wideFilters[this._mode]
-          console.log('bandWidth=' + bandWidth)
-          this.player.setFilter(tcvr.sidetoneFreq, bandWidth)
-          // let data = "FW" + freq
-          // this.send(data + ";")
-        })
-        tcvr.addEventListener(EventType.preamp, this.constructor.id, event => this.send("PA" + (event.value ? "1" : "0") + ";"))
-        tcvr.addEventListener(EventType.attn, this.constructor.id, event => this.send("RA0" + (event.value ? "1" : "0") + ";"))
-        
-        successCallback(this);
+        port._startPowerOnTimer(10000)
+        this._bindCommands(tcvr, port)
+        successCallback(port);
       }, 5000) // delay for tcvr-init after poweron 
     }
+  }
+
+  _bindCommands(tcvr, port) {
+    tcvr.addEventListener(EventType.keyDit, this.constructor.id, event => port.send(".;"))
+    tcvr.addEventListener(EventType.keyDah, this.constructor.id, event => port.send("-;"))
+    tcvr.addEventListener(EventType.mode, this.constructor.id, event => port.send("MD" + (event.value + 1) + ";"))
+    tcvr.addEventListener(EventType.freq, this.constructor.id, event => {
+      let freq = event.value
+      let data = "FA" // + _vfos[this._rxVfo]; // TODO split
+      data += "000"
+      if (freq < 10000000) { // <10MHz
+          data += "0"
+      }
+      data += freq
+      port.send(data + ";")
+    })
+    tcvr.addEventListener(EventType.wpm, this.constructor.id, event => port.send("KS0" + event.value + ";"))
+    tcvr.addEventListener(EventType.filter, this.constructor.id, event => port.filter(event.value))
+    tcvr.addEventListener(EventType.preamp, this.constructor.id, event => port.send("PA" + (event.value ? "1" : "0") + ";"))
+    tcvr.addEventListener(EventType.attn, this.constructor.id, event => port.send("RA0" + (event.value ? "1" : "0") + ";"))
+  }
+}
+
+class K2WebSocketsPort {
+  constructor(ws) {
+    this._ws = ws
+  }
+
+  _playStream(url) {
+    console.log('playing RX stream')
+    this._player = new WavPlayer()
+    this._player.play(url)
+    // this._player.setFilter('lowpass', _wideFilters[this._mode], 1)
+  }
+
+  _startPowerOnTimer(interval) {
+    this._timer = setInterval(() => this.send('POWER1;'), interval);
+  }
+
+  filter(bandWidth) {
+    if (this._player) {
+      this._player.setFilter(tcvr.sidetoneFreq, event.value)
+    }
+    // port.send((bandWidth < 1000 ? "FW0" : "FW") + bandWidth + ";")
   }
 
   disconnect() {
     clearInterval(this._timer)
     this.send('POWER0;')
-    if (this.ws) {
-      this.ws.close()
+    if (this._ws) {
+      this._ws.close()
     }
-    if (this.player) {
-      this.player.stop()
+    if (this._player) {
+      this._player.stop()
     }
   }
 
   send(data) {
-    if (this.ws) {
-      this.ws.send(data)
+    if (this._ws) {
+      this._ws.send(data)
     }
   }
 }
