@@ -41,7 +41,10 @@ app.get('/', function (req, res) {
 })
 
 app.param(tokenParam, (req, res, next, value) => {
+	const token = req.params[tokenParam] && req.params[tokenParam].toUpperCase()
+	// log(`request token: ${token}`)
 	req.authorized = authorize(token) || error(res, 'EAUTH', 401)
+	next()
 })
 
 log('Registering REST services')
@@ -56,18 +59,22 @@ register('/status', (req, res) => res.send({ who: whoNow, service: serviceNow, a
 register('/stream.wav', audioStream)
 app.use('/smartceiver', express.static('public'))
 app.ws(`/control/:${tokenParam}`, function (ws, req) {
+	log('control connect')
 	if (!req.authorized) {
+		log('unauthorized ws, terminating')
 		ws.terminate()
 		return
 	}
 
 	ws.on('message', msg => {
-		console.log('ws:', msg)
+		// log('ws:' + msg)
 		if (msg == 'poweron') {
+			log('control: ' + msg)
 			serviceNow = 'TCVR'
 			// managePower(serviceNow, true)
 			sendUart('H0\n')
 		} else if (msg == 'poweroff') {
+			log('control: ' + msg)
 			// managePower(serviceNow, false)
 			sendUart('L0\n')
 			serviceNow = false
@@ -211,7 +218,6 @@ function tcvrFreq(f) {
 		253] // 0xFD
 	log(`TCVR f: ${data}`)
 	tcvr.write(data, (err) => err && log(`TCVR ${err.message}`))
-	res.send('OK')
 }
 
 //// RX audio stream
