@@ -1,24 +1,26 @@
 {
-  "name": "powron",
+  "name": "remotig",
   "version": "1.0.0",
-  "description": "REST services for powron - remote maintenance.",
-  "main": "index.js",
+  "description": "Remotely control your amateur radio transceiver",
+  "main": "app.js",
+  "public": "false",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/zoliqe/powron-rest.git"
+    "url": "https://github.com/zoliqe/remotig.git"
   },
   "author": "Mike Karas OM4AA",
-  "license": "ISC",
+  "license": "GPL3",
   "bugs": {
-    "url": "https://github.com/zoliqe/powron-rest/issues"
+    "url": "https://github.com/zoliqe/remotig/issues"
   },
-  "homepage": "https://github.com/zoliqe/powron-rest#readme",
+  "homepage": "https://github.com/zoliqe/remotig#readme",
   "dependencies": {
     "ds18b20-raspi": "^0.2.5",
     "express": "^4.16.3",
+    "express-ws": "^4.0.0",
     "mic": "^2.1.2",
     "serialport": "^7.0.2"
   }
