@@ -67,6 +67,7 @@ app.ws(`/control/:${tokenParam}`, function (ws, req) {
 	}
 
 	ws.on('message', msg => {
+		authTime = secondsNow()
 		// log('ws:' + msg)
 		if (msg == 'poweron') {
 			log('control: ' + msg)
