@@ -37,7 +37,7 @@
 /* eslint-disable indent, no-unused-vars, no-multiple-empty-lines, max-nested-callbacks, space-before-function-paren, quotes, comma-spacing */
 'use strict';
 
-var precacheConfig = [["/smartceiver/bower_components/webcomponentsjs/custom-elements-es5-adapter.js","a5043c1d0dd16d84558ee6cc2276212e"],["/smartceiver/bower_components/webcomponentsjs/gulpfile.js","0366da1f0f7858c9af2daa3ef7d950ea"],["/smartceiver/bower_components/webcomponentsjs/webcomponents-hi-ce.js","fbaa6751e3b07a33a459ebbbd24a4ede"],["/smartceiver/bower_components/webcomponentsjs/webcomponents-hi-sd-ce.js","f06beb1fba0a9020e116162370e3ef16"],["/smartceiver/bower_components/webcomponentsjs/webcomponents-hi.js","487ac7582563f4797e9e3659a096a642"],["/smartceiver/bower_components/webcomponentsjs/webcomponents-lite.js","b591b76678e2f5d584eff169fd0ff2f8"],["/smartceiver/bower_components/webcomponentsjs/webcomponents-loader.js","f13bbbbf647b7922575a7894367ddaaf"],["/smartceiver/bower_components/webcomponentsjs/webcomponents-sd-ce.js","e229eae539aba7a4d2400316e6603b0d"],["/smartceiver/images/favicon.ico","82b34d0faee76b89a9f946763428f668"],["/smartceiver/index.html","cb23dee46d316acdabde69d7cb49d630"],["/smartceiver/manifest.json","4795273d9c9efd02f95e957e95901cb9"],["/smartceiver/src/smartceiver-app.html","fe5be3e78a4ce0143466c5dfa5126f83"]];
+var precacheConfig = [["/smartceiver/bower_components/webcomponentsjs/custom-elements-es5-adapter.js","64f5df65cd8c5c2008d2cd575bcea1be"],["/smartceiver/bower_components/webcomponentsjs/gulpfile.js","1b1e70806b47c7a03fe17a47c2046ec2"],["/smartceiver/bower_components/webcomponentsjs/webcomponents-ce.js","0b20f181984ae341112fd8cb54d33298"],["/smartceiver/bower_components/webcomponentsjs/webcomponents-hi-ce.js","da2b449f0b132c4aad1a2d98d2c121de"],["/smartceiver/bower_components/webcomponentsjs/webcomponents-hi-sd-ce.js","483ca858f80f6b6757772a7e1b82fdeb"],["/smartceiver/bower_components/webcomponentsjs/webcomponents-hi-sd.js","6d8a6abf423d6813d89ef1749e4cb4a4"],["/smartceiver/bower_components/webcomponentsjs/webcomponents-hi.js","2e02d950c1c199919a375acfd1fbc108"],["/smartceiver/bower_components/webcomponentsjs/webcomponents-lite.js","27ca51528492bf58015cf9f54311f9ed"],["/smartceiver/bower_components/webcomponentsjs/webcomponents-loader.js","596ad3dc06dfb78ecdc6bcee1d653f04"],["/smartceiver/bower_components/webcomponentsjs/webcomponents-sd-ce.js","bee17e785a94b0b6a8b73d304095e4b8"],["/smartceiver/bower_components/webcomponentsjs/webcomponents-sd.js","f3076755c4fec70e7505319c4962e9ca"],["/smartceiver/images/favicon.ico","82b34d0faee76b89a9f946763428f668"],["/smartceiver/index.html","cb23dee46d316acdabde69d7cb49d630"],["/smartceiver/manifest.json","4795273d9c9efd02f95e957e95901cb9"],["/smartceiver/src/smartceiver-app.html","f6aab628e184904c513ddef40ad21033"]];
 var cacheName = 'sw-precache-v3-smartceiver-' + (self.registration ? self.registration.scope : '');
 
 
@@ -45,7 +45,7 @@ var ignoreUrlParametersMatching = [/^utm_/];
 
 
 
-var addDirectoryIndex = function (originalUrl, index) {
+var addDirectoryIndex = function(originalUrl, index) {
     var url = new URL(originalUrl);
     if (url.pathname.slice(-1) === '/') {
       url.pathname += index;
@@ -53,7 +53,7 @@ var addDirectoryIndex = function (originalUrl, index) {
     return url.toString();
   };
 
-var cleanResponse = function (originalResponse) {
+var cleanResponse = function(originalResponse) {
     // If this is not a redirected response, then we don't have to do anything.
     if (!originalResponse.redirected) {
       return Promise.resolve(originalResponse);
@@ -75,7 +75,7 @@ var cleanResponse = function (originalResponse) {
     });
   };
 
-var createCacheKey = function (originalUrl, paramName, paramValue,
+var createCacheKey = function(originalUrl, paramName, paramValue,
                            dontCacheBustUrlsMatching) {
     // Create a new URL object to avoid modifying originalUrl.
     var url = new URL(originalUrl);
@@ -91,7 +91,7 @@ var createCacheKey = function (originalUrl, paramName, paramValue,
     return url.toString();
   };
 
-var isPathWhitelisted = function (whitelist, absoluteUrlString) {
+var isPathWhitelisted = function(whitelist, absoluteUrlString) {
     // If the whitelist is empty, then consider all URLs to be whitelisted.
     if (whitelist.length === 0) {
       return true;
@@ -104,7 +104,7 @@ var isPathWhitelisted = function (whitelist, absoluteUrlString) {
     });
   };
 
-var stripIgnoredUrlParameters = function (originalUrl,
+var stripIgnoredUrlParameters = function(originalUrl,
     ignoreUrlParametersMatching) {
     var url = new URL(originalUrl);
     // Remove the hash; see https://github.com/GoogleChrome/sw-precache/issues/290

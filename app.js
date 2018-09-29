@@ -1,96 +1,265 @@
-let port = 8090
-let serialPath = '/dev/ttyUSB0'
-let SerialPort = require('serialport')
-let serial = new SerialPort(serialPath, {baudRate: 115200})
-serial.on('open', () => console.log('SerialPort opened:', serialPath))
-serial.on('error', err => {
-  if (err) {
-    console.log('SerialPort error:', err.message)
-  }
-})
-serial.on('data', data => console.log('SerialPort:', data))
+//import { * as express } from 'expres';
 
-//var lame = require('lame');
-let mic = require('mic')
-let fs = require('fs')
+const port = 8088
+const tokens = ['OM4AA-1999', 'OM3RRC-1969']
+const authTimeout = 60 // sec
+const heartbeat = 1 // sec
+const serviceRelays = { /*'SDR': ['0'],*/ 'TCVR': ['0', '1'] }
+const services = Object.keys(serviceRelays)
+const tcvrUrl = 'tcvr'
+const tcvrDev = '/dev/ttyUSB0'
+const tcvrBaudrate = 9600
+const tcvrCivAddr = 0x44
+const myCivAddr = 224
+const uartDev = '/dev/ttyAMA0'
+const uartBaudrate = 115200
+const uartCmdByState = state => (state && 'H') || 'L'
 
+const express = require('express')
+const SerialPort = require('serialport')
+const temps = require('ds18b20-raspi')
+const mic = require('mic')
+//var lame = require('lame')
+
+const tokenParam = 'token'
+const serviceParam = 'service'
+const serviceURL = `/:${tokenParam}/:${serviceParam}/`
+const freqParam = 'freq'
+
+let whoNow = null
+let serviceNow = false
+let authTime = null // sec
+const secondsNow = () => Date.now() / 1000
 let audio = undefined
-// set up an express app
-let express = require('express')
-let app = express()
-let expressWs = require('express-ws')(app)
 
+log('Starting express app')
+const app = express()
+const appWs = require('express-ws')(app)
+
+app.get('/', function (req, res) {
+	res.send('Hello World')
+})
+
+app.param(tokenParam, (req, res, next, value) => {
+	req.authorized = authorize(token) || error(res, 'EAUTH', 401)
+})
+
+log('Registering REST services')
+register(serviceURL + 'start', (req, res) => executeAction(req, res, true))
+register(serviceURL + 'stop', (req, res) => executeAction(req, res, false))
+register(`/${tcvrUrl}/freq/:${freqParam}`, (req, res) => {
+	tcvrFreq(req.params[freqParam] && Number(req.params[freqParam]).toFixed(0))
+	res.end()
+})
+register('/temps', (req, res) => res.send(temps.readAllC()))
+register('/status', (req, res) => res.send({ who: whoNow, service: serviceNow, authTime: authTime }))
+register('/stream.wav', audioStream)
 app.use('/smartceiver', express.static('public'))
+app.ws(`/control/:${tokenParam}`, function (ws, req) {
+	if (!req.authorized) {
+		ws.terminate()
+		return
+	}
 
-// startAudio(stream => app.get('/stream.wav', (req, res) => {
-//   res.set({
-//     'Content-Type': 'audio/wav',
-//     'Transfer-Encoding': 'chunked'
-//   })
-//   stream.read() // flush
-//   stream.pipe(res)
-// }))
-app.get('/stream.wav', function (req, res) {
-  res.set({
-    'Content-Type': 'audio/wav',
-    'Transfer-Encoding': 'chunked'
-  })
-  if (audio) { // stop previously started audio
-    stopAudio()
-    startAudio(stream => stream.pipe(res))
+	ws.on('message', msg => {
+		console.log('ws:', msg)
+		if (msg == 'poweron') {
+			serviceNow = 'TCVR'
+			// managePower(serviceNow, true)
+			sendUart('H0\n')
+		} else if (msg == 'poweroff') {
+			// managePower(serviceNow, false)
+			sendUart('L0\n')
+			serviceNow = false
+		} else if (msg == 'keyeren') {
+			sendUart('K5\n')
+		} else if (['.', '-', '_'].includes(msg)) {
+			sendUart(msg)
+		} else if (msg.startsWith('wpm=')) {
+			sendUart('S' + msg.substring(4))
+		} else if (msg.startsWith('f=')) {
+			tcvrFreq(Number(msg.substring(2)))
+		}
+		// TODO mode, preamp, attn
+	})
+})
+
+const server = app.listen(port, () => log(`Listening on ${port}`))
+
+
+log(`Activating heartbeat every ${heartbeat} s`)
+setInterval(checkAuthTimeout, heartbeat * 1000)
+
+log(`Opening UART ${uartDev}`)
+const uart = new SerialPort(uartDev,
+	{ baudRate: uartBaudrate },
+	(err) => err && log(`UART ${err.message}`))
+uart.on('open', () => log(`UART opened: ${uartDev} ${uartBaudrate}`))
+uart.on('data', (data) => log(`UART => ${data}`))
+
+log(`Opening TCVR CAT ${tcvrDev}`)
+const tcvr = new SerialPort(tcvrDev, { baudRate: tcvrBaudrate },
+	(err) => err && log(`TCVR ${err.message}`))
+tcvr.on('open', () => log(`TCVR opened: ${tcvrDev} ${tcvrBaudrate}`))
+tcvr.on('data', (data) => log(`TCVR => ${data}`))
+
+function log(str) {
+	console.log(new Date().toISOString() + ' ' + str)
+}
+
+function register(url, callback) {
+	log(`URL: ${url}`)
+	app.get(url, callback)
+}
+
+//// Access Management
+function authorize(token) {
+	const who = whoIn(token)
+	if (!token || !who) return false
+	if (!tokens.includes(token) || (whoNow && whoNow !== who)) return false
+
+	whoNow = who
+	authTime = secondsNow()
+	log(`Authored ${who}`)
+	return true
+}
+
+function whoIn(token) {
+	if (!token) return null
+	const delPos = token.indexOf('-')
+	return delPos > 3 ? token.substring(0, delPos).toUpperCase() : null
+}
+
+function checkAuthTimeout() {
+	if (!whoNow) return
+
+	if (!authTime || (authTime + authTimeout) < secondsNow()) {
+		log(`auth timeout for ${whoNow}:`)
+		whoNow = authTime = null
+		stopService()
+	}
+}
+
+function error(res, err, status = 400) {
+	res.locals.result = err
+	res.status(status).send(err)
+	return false
+}
+
+function executeAction(req, res, state) {
+	const token = req.params[tokenParam] && req.params[tokenParam].toUpperCase()
+	const service = req.params[serviceParam] && req.params[serviceParam].toUpperCase()
+
+	// const authorized = authorize(token) || error(res, 'EAUTH')
+	const result = req.authorized && (managePower(service, state) || error(res, 'ESERV'))
+
+	if (result) {
+		serviceNow = state && service
+		if (!state) whoNow = authTime = null // logout
+		res.send('OK')
+		res.locals.result = 'OK'
+	}
+	log(`..authored ${whoIn(token)} for ${service} state ${state}, result: ${res.locals.result}`)
+	return result
+}
+
+function managePower(service, state) {
+	if (!service || !services.includes(service)) return false
+	// if (serviceNow && serviceNow !== service) return false
+
+	// let i = 0
+	// serviceRelays[service].forEach(relay => setTimeout(() => sendUart(cmd + relay), i++ * 5000))
+	serviceRelays[service].forEach(relay => sendUart(uartCmdByState(state) + relay))
+	return true
+}
+
+function stopService(service = serviceNow) {
+	if (!service) return
+	managePower(service, false)
+
+	serviceNow = false
+}
+
+//// UART + TCVR CAT 
+function sendUart(cmd) {
+	log(`UART <= ${cmd}`)
+	uart.write(cmd, (err) => err && log(`UART ${err.message}`))
+}
+
+function tcvrFreq(f) {
+	if (!f || f < 1500000 || f > 30000000) return //error(res, 'EVAL')
+
+	const hex2dec = (h) => {
+		const s = Math.floor(h / 10)
+		return s * 16 + (h - s * 10)
+	}
+	// log(`f=${f}`)
+	const mhz10_1 = Math.floor(f / 1000000) // 10MHz, 1MHz
+	f = f - (mhz10_1 * 1000000)
+	// log(`f=${f}`)
+	const khz100_10 = Math.floor(f / 10000) // 100kHz, 10kHz
+	f = f - (khz100_10 * 10000)
+	// log(`f=${f}`)
+	const hz1000_100 = Math.floor(f / 100) // 1kHz, 100Hz
+	f = f - (hz1000_100 * 100)
+	// log(`f=${f}`)
+	const hz10 = Math.floor(f / 10) * 10 // 10Hz
+
+	const data = [254, 254, // 0xFE 0xFE
+		tcvrCivAddr, myCivAddr, 0, // 0: transfer Freq CMD w/o reply .. 5: set Freq CMD with reply
+		hex2dec(hz10), hex2dec(hz1000_100), hex2dec(khz100_10), hex2dec(mhz10_1), 0, // freq always < 100MHz
+		253] // 0xFD
+	log(`TCVR f: ${data}`)
+	tcvr.write(data, (err) => err && log(`TCVR ${err.message}`))
+	res.send('OK')
+}
+
+//// RX audio stream
+function audioStream(req, res) {
+	res.set({ 'Content-Type': 'audio/wav', 'Transfer-Encoding': 'chunked' })
+	audio && stopAudio() // stop previously started audio
     // stopAudio(() => {
     //   setTimeout(() => {
     //     startAudio(stream => stream.pipe(res))
     //   }, 3000)
     // })
-  } else { // cold start
-    startAudio(stream => stream.pipe(res))
-  }
+	startAudio(stream => stream.pipe(res))
   //    encoder.pipe(res);
-})
-
-app.ws('/ctl', function(ws, req) {
-  ws.on('message', msg => {
-    console.log(msg)
-    serial.write(msg)
-  })
-})
-
-let server = app.listen(port, () => console.log('Listening on port ' + port))
+}
 
 async function startAudio(cb) {
-  console.log('start audio')
-  await sleep(1000)
-  audio = mic({
-    device: 'plughw:0,0',
-    rate: '8000',
-    channels: '1',
-    fileType: 'wav',
-    debug: true,
-    // exitOnSilence: 6
-  })
+	log('start audio')
+	await sleep(1000)
+	audio = mic({
+		device: 'plughw:1,0',
+		rate: '8000',
+		channels: '1',
+		fileType: 'wav',
+		debug: true,
+		// exitOnSilence: 6
+	})
 
-  // audioStream = audio.getAudioStream();
-  audio.getAudioStream().on('startComplete', () => {
-    // console.log('startComplete');
-    cb(audio.getAudioStream())
-  })
+	// audioStream = audio.getAudioStream();
+	audio.getAudioStream().on('startComplete', () => {
+		// console.log('startComplete');
+		cb(audio.getAudioStream())
+	})
 
-  audio.start()
+	audio.start()
 }
 
 function stopAudio(cb) {
-  console.log('stop audio');
-  audio.stop()
-  // audio.getAudioStream().on('stopComplete', () => {
-    // audioStream = undefined;
-    audio = undefined
-    // cb()
-  // })
+	log('stop audio');
+	audio.stop()
+	// audio.getAudioStream().on('stopComplete', () => {
+	// audioStream = undefined;
+	audio = undefined
+	// cb()
+	// })
 }
 
 function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+	return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 //input.pipe(encoder);
