@@ -195,7 +195,7 @@ function stopService(service = serviceNow) {
 //// UART + TCVR CAT 
 function sendUart(cmd) {
 	//log(`UART <= ${cmd.trim()}`)
-	cmd.length > 1 && cmd += '\n' // add NL delimiter for cmd with param
+	cmd.length > 1 && (cmd += '\n') // add NL delimiter for cmd with param
 	uart.write(cmd, (err) => err && log(`UART ${err.message}`))
 }
 
