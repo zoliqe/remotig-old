@@ -5,9 +5,13 @@ const tokens = ['OM4AA-1999', 'OM3RRC-1969']
 const authTimeout = 30 // sec
 const hwWatchdogTimeout = 120 // sec
 const heartbeat = 1 // sec
-const serviceRelays = { /*'SDR': ['0'],*/ 'TCVR': ['0', '1'] }
+const tcvrService = 'TCVR'
+const sdrService = 'SDR'
+const serviceRelays = { }
+serviceRelays[sdrService] = ['0']
+serviceRelays[tcvrService] = ['0', '1']
 const services = Object.keys(serviceRelays)
-const tcvrUrl = 'tcvr'
+//const tcvrUrl = 'tcvr'
 const tcvrDev = '/dev/ttyUSB0'
 const tcvrBaudrate = 9600
 const tcvrCivAddr = 0x58
@@ -27,19 +31,15 @@ const serviceParam = 'service'
 const serviceURL = `/:${tokenParam}/:${serviceParam}/`
 const freqParam = 'freq'
 
-let whoNow = null
-let serviceNow = false
-let authTime = null // sec
+let whoNow = undefined
+let activeServices = []
+let authTime = undefined // sec
 const secondsNow = () => Date.now() / 1000
 let audio = undefined
 
 log('Starting express app')
 const app = express()
 const appWs = require('express-ws')(app)
-
-app.get('/', function (req, res) {
-	res.send('Hello World')
-})
 
 app.param(tokenParam, (req, res, next, value) => {
 	const token = req.params[tokenParam] && req.params[tokenParam].toUpperCase()
@@ -49,16 +49,16 @@ app.param(tokenParam, (req, res, next, value) => {
 })
 
 log('Registering REST services')
-register(serviceURL + 'start', (req, res) => executeAction(req, res, true))
-register(serviceURL + 'stop', (req, res) => executeAction(req, res, false))
-register(`/${tcvrUrl}/freq/:${freqParam}`, (req, res) => {
-	tcvrFreq(req.params[freqParam] && Number(req.params[freqParam]).toFixed(0))
-	res.end()
-})
+//register(serviceURL + 'start', (req, res) => executeAction(req, res, true))
+//register(serviceURL + 'stop', (req, res) => executeAction(req, res, false))
+//register(`/${tcvrUrl}/freq/:${freqParam}`, (req, res) => {
+//	tcvrFreq(req.params[freqParam] && Number(req.params[freqParam]).toFixed(0))
+//	res.end()
+//})
 register('/temps', (req, res) => res.send(temps.readAllC()))
-register('/status', (req, res) => res.send({ who: whoNow, service: serviceNow, authTime: authTime }))
+register('/status', (req, res) => res.send({ who: whoNow, servicesOn: activeServices, authTime: authTime }))
 register('/stream.wav', audioStream)
-app.use('/smartceiver', express.static('public'))
+app.use('/', express.static('public'))
 app.ws(`/control/:${tokenParam}`, function (ws, req) {
 	log('control connect')
 	if (!req.authorized) {
@@ -71,18 +71,12 @@ app.ws(`/control/:${tokenParam}`, function (ws, req) {
 		authTime = secondsNow()
 		// log('ws:' + msg)
 		if (msg == 'poweron') {
-			sendUart('H0')
-			if (!serviceNow) {
-				log('control: ' + msg)
-				sendUart(`T${hwWatchdogTimeout}`)
-			}
-			serviceNow = 'TCVR'
-			// managePower(serviceNow, true)
+			startService(tcvrService)
+		//sendUart('H0')
 		} else if (msg == 'poweroff') {
 			log('control: ' + msg)
-			// managePower(serviceNow, false)
-			sendUart('L0')
-			serviceNow = false
+			stopService(tcvrService)
+			//sendUart('L0')
 		} else if (msg == 'keyeren') {
 			sendUart('K5')
 		} else if (['.', '-', '_'].includes(msg)) {
@@ -147,8 +141,7 @@ function checkAuthTimeout() {
 
 	if (!authTime || (authTime + authTimeout) < secondsNow()) {
 		log(`auth timeout for ${whoNow}:`)
-		whoNow = authTime = null
-		stopService()
+		activeServices.forEach(stopService)
 	}
 }
 
@@ -158,7 +151,7 @@ function error(res, err, status = 400) {
 	return false
 }
 
-function executeAction(req, res, state) {
+/*function executeAction(req, res, state) {
 	const token = req.params[tokenParam] && req.params[tokenParam].toUpperCase()
 	const service = req.params[serviceParam] && req.params[serviceParam].toUpperCase()
 
@@ -166,36 +159,57 @@ function executeAction(req, res, state) {
 	const result = req.authorized && (managePower(service, state) || error(res, 'ESERV'))
 
 	if (result) {
-		serviceNow = state && service
+//		serviceNow = state && service
 		if (!state) whoNow = authTime = null // logout
 		res.send('OK')
 		res.locals.result = 'OK'
 	}
 	log(`..authored ${whoIn(token)} for ${service} state ${state}, result: ${res.locals.result}`)
 	return result
+}*/
+
+async function startService(service) {
+	if ( ! managePower(service, true)) return
+	const coldStart = ! activeServices.includes(service)
+	if (coldStart) {
+		log('control: poweron')
+		sendUart(`T${hwWatchdogTimeout}`)
+	}
+
+	activeServices.indexOf(service) === -1 && activeServices.push(service)
 }
 
-function managePower(service, state) {
+async function stopService(service) {
+	//if (!activeServices.includes(service)) return
+	managePower(service, false)
+	await sleep(1000)
+	managePower(service, false)
+
+	service === tcvrService && stopAudio()
+
+	const index = activeServices.indexOf(service)
+	index !== -1 && activeServices.splice(index, 1)
+	activeServices.length == 0 && (whoNow = authTime = null) // logout
+}
+
+async function managePower(service, state) {
 	if (!service || !services.includes(service)) return false
 	// if (serviceNow && serviceNow !== service) return false
 
 	// let i = 0
 	// serviceRelays[service].forEach(relay => setTimeout(() => sendUart(cmd + relay), i++ * 5000))
-	serviceRelays[service].forEach(relay => sendUart(uartCmdByState(state) + relay))
+	serviceRelays[service].forEach(async (relay) => {
+		sendUart(uartCmdByState(state) + relay)
+		//await sleep(1000)
+	})
 	return true
-}
-
-function stopService(service = serviceNow) {
-	if (!service) return
-	managePower(service, false)
-
-	serviceNow = false
 }
 
 //// UART + TCVR CAT 
 function sendUart(cmd) {
 	//log(`UART <= ${cmd.trim()}`)
 	cmd.length > 1 && (cmd += '\n') // add NL delimiter for cmd with param
+	//log(`UART <= ${cmd}`)
 	uart.write(cmd, (err) => err && log(`UART ${err.message}`))
 }
 
@@ -227,9 +241,9 @@ function tcvrFreq(f) {
 }
 
 //// RX audio stream
-function audioStream(req, res) {
+async function audioStream(req, res) {
 	res.set({ 'Content-Type': 'audio/wav', 'Transfer-Encoding': 'chunked' })
-	audio && stopAudio() && sleep(1000) // stop previously started audio
+	stopAudio() && await sleep(10000) // stop previously started audio
     // stopAudio(() => {
     //   setTimeout(() => {
     //     startAudio(stream => stream.pipe(res))
@@ -261,6 +275,7 @@ async function startAudio(cb) {
 }
 
 function stopAudio(cb) {
+	if (!audio) return false
 	log('stop audio');
 	audio.stop()
 	// audio.getAudioStream().on('stopComplete', () => {
