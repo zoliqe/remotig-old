@@ -3,13 +3,14 @@
 const port = 8088
 const tokens = ['OM4AA-1999', 'OM3RRC-1969']
 const authTimeout = 60 // sec
+const hwWatchdogTimeout = 120 // sec
 const heartbeat = 1 // sec
 const serviceRelays = { /*'SDR': ['0'],*/ 'TCVR': ['0', '1'] }
 const services = Object.keys(serviceRelays)
 const tcvrUrl = 'tcvr'
 const tcvrDev = '/dev/ttyUSB0'
 const tcvrBaudrate = 9600
-const tcvrCivAddr = 0x44
+const tcvrCivAddr = 0x58
 const myCivAddr = 224
 const uartDev = '/dev/ttyAMA0'
 const uartBaudrate = 115200
@@ -70,17 +71,20 @@ app.ws(`/control/:${tokenParam}`, function (ws, req) {
 		authTime = secondsNow()
 		// log('ws:' + msg)
 		if (msg == 'poweron') {
-			log('control: ' + msg)
+			if (!serviceNow) {
+				sendUart(`T${hwWatchdogTimeout}`)
+				log('control: ' + msg)
+			}
 			serviceNow = 'TCVR'
 			// managePower(serviceNow, true)
-			sendUart('H0\n')
+			sendUart('H0')
 		} else if (msg == 'poweroff') {
 			log('control: ' + msg)
 			// managePower(serviceNow, false)
-			sendUart('L0\n')
+			sendUart('L0')
 			serviceNow = false
 		} else if (msg == 'keyeren') {
-			sendUart('K5\n')
+			sendUart('K5')
 		} else if (['.', '-', '_'].includes(msg)) {
 			sendUart(msg)
 		} else if (msg.startsWith('wpm=')) {
@@ -103,7 +107,7 @@ const uart = new SerialPort(uartDev,
 	{ baudRate: uartBaudrate },
 	(err) => err && log(`UART ${err.message}`))
 uart.on('open', () => log(`UART opened: ${uartDev} ${uartBaudrate}`))
-uart.on('data', (data) => log(`UART => ${data}`))
+//uart.on('data', (data) => log(`UART => ${data.trim()}`))
 
 log(`Opening TCVR CAT ${tcvrDev}`)
 const tcvr = new SerialPort(tcvrDev, { baudRate: tcvrBaudrate },
@@ -190,7 +194,8 @@ function stopService(service = serviceNow) {
 
 //// UART + TCVR CAT 
 function sendUart(cmd) {
-	log(`UART <= ${cmd}`)
+	//log(`UART <= ${cmd.trim()}`)
+	cmd.length > 1 && cmd += '\n' // add NL delimiter for cmd with param
 	uart.write(cmd, (err) => err && log(`UART ${err.message}`))
 }
 
@@ -217,14 +222,14 @@ function tcvrFreq(f) {
 		tcvrCivAddr, myCivAddr, 0, // 0: transfer Freq CMD w/o reply .. 5: set Freq CMD with reply
 		hex2dec(hz10), hex2dec(hz1000_100), hex2dec(khz100_10), hex2dec(mhz10_1), 0, // freq always < 100MHz
 		253] // 0xFD
-	log(`TCVR f: ${data}`)
+	// log(`TCVR f: ${data}`)
 	tcvr.write(data, (err) => err && log(`TCVR ${err.message}`))
 }
 
 //// RX audio stream
 function audioStream(req, res) {
 	res.set({ 'Content-Type': 'audio/wav', 'Transfer-Encoding': 'chunked' })
-	audio && stopAudio() // stop previously started audio
+	audio && stopAudio() && sleep(1000) // stop previously started audio
     // stopAudio(() => {
     //   setTimeout(() => {
     //     startAudio(stream => stream.pipe(res))
@@ -263,6 +268,7 @@ function stopAudio(cb) {
 	audio = undefined
 	// cb()
 	// })
+	return true
 }
 
 function sleep(ms) {
