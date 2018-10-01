@@ -74,9 +74,8 @@ app.ws(`/control/:${tokenParam}`, function (ws, req) {
 			startService(tcvrService)
 		//sendUart('H0')
 		} else if (msg == 'poweroff') {
-			log('control: ' + msg)
-			stopAudio() // not sure why, but must be called here, not in stopService()
 			stopService(tcvrService)
+			stopAudio() // not sure why, but must be called here, not in stopService()
 			//sendUart('L0')
 		} else if (msg == 'keyeren') {
 			sendUart('K5')
@@ -173,7 +172,7 @@ async function startService(service) {
 	if ( ! managePower(service, true)) return
 	const coldStart = ! activeServices.includes(service)
 	if (coldStart) {
-		log('control: poweron')
+		log(`startService: ${service}`)
 		sendUart(`T${hwWatchdogTimeout}`)
 	}
 
@@ -182,6 +181,7 @@ async function startService(service) {
 
 async function stopService(service) {
 	//if (!activeServices.includes(service)) return
+	log(`stopService: ${service}`)
 	managePower(service, false)
 	await sleep(1000)
 	managePower(service, false)
@@ -243,8 +243,9 @@ function tcvrFreq(f) {
 
 //// RX audio stream
 async function audioStream(req, res) {
+	log('Starting audio stream')
 	res.set({ 'Content-Type': 'audio/wav', 'Transfer-Encoding': 'chunked' })
-	stopAudio() && await sleep(10000) // stop previously started audio
+	stopAudio()// && await sleep(10000) // stop previously started audio
     // stopAudio(() => {
     //   setTimeout(() => {
     //     startAudio(stream => stream.pipe(res))
