@@ -58,7 +58,7 @@ log('Registering REST services')
 register('/temps', (req, res) => res.send(temps.readAllC()))
 register('/status', (req, res) => res.send({ who: whoNow, servicesOn: activeServices, authTime: authTime }))
 register('/stream.wav', audioStream)
-app.use('/', express.static('public'))
+app.use('/smartceiver', express.static('public'))
 app.ws(`/control/:${tokenParam}`, function (ws, req) {
 	log('control connect')
 	if (!req.authorized) {
