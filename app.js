@@ -75,6 +75,7 @@ app.ws(`/control/:${tokenParam}`, function (ws, req) {
 		//sendUart('H0')
 		} else if (msg == 'poweroff') {
 			log('control: ' + msg)
+			stopAudio() // not sure why, but must be called here, not in stopService()
 			stopService(tcvrService)
 			//sendUart('L0')
 		} else if (msg == 'keyeren') {
@@ -185,7 +186,7 @@ async function stopService(service) {
 	await sleep(1000)
 	managePower(service, false)
 
-	service === tcvrService && stopAudio()
+	//service === tcvrService && stopAudio()
 
 	const index = activeServices.indexOf(service)
 	index !== -1 && activeServices.splice(index, 1)
