@@ -2,7 +2,7 @@
 
 const port = 8088
 const tokens = ['OM4AA-1999', 'OM3RRC-1969']
-const authTimeout = 60 // sec
+const authTimeout = 30 // sec
 const hwWatchdogTimeout = 120 // sec
 const heartbeat = 1 // sec
 const serviceRelays = { /*'SDR': ['0'],*/ 'TCVR': ['0', '1'] }
@@ -71,13 +71,13 @@ app.ws(`/control/:${tokenParam}`, function (ws, req) {
 		authTime = secondsNow()
 		// log('ws:' + msg)
 		if (msg == 'poweron') {
+			sendUart('H0')
 			if (!serviceNow) {
-				sendUart(`T${hwWatchdogTimeout}`)
 				log('control: ' + msg)
+				sendUart(`T${hwWatchdogTimeout}`)
 			}
 			serviceNow = 'TCVR'
 			// managePower(serviceNow, true)
-			sendUart('H0')
 		} else if (msg == 'poweroff') {
 			log('control: ' + msg)
 			// managePower(serviceNow, false)
@@ -107,7 +107,7 @@ const uart = new SerialPort(uartDev,
 	{ baudRate: uartBaudrate },
 	(err) => err && log(`UART ${err.message}`))
 uart.on('open', () => log(`UART opened: ${uartDev} ${uartBaudrate}`))
-//uart.on('data', (data) => log(`UART => ${data.trim()}`))
+//uart.on('data', (data) => log(`UART => ${data}`))
 
 log(`Opening TCVR CAT ${tcvrDev}`)
 const tcvr = new SerialPort(tcvrDev, { baudRate: tcvrBaudrate },
