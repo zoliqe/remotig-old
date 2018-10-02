@@ -10,7 +10,6 @@ const sdrService = 'SDR'
 const serviceRelays = { }
 serviceRelays[sdrService] = ['0']
 serviceRelays[tcvrService] = ['0', '1']
-const services = Object.keys(serviceRelays)
 //const tcvrUrl = 'tcvr'
 const tcvrDev = '/dev/ttyUSB0'
 const tcvrBaudrate = 9600
@@ -19,11 +18,13 @@ const myCivAddr = 224
 const uartDev = '/dev/ttyAMA0'
 const uartBaudrate = 115200
 const uartCmdByState = state => (state && 'H') || 'L'
+const uartStartSeq = '$OM4AA#'
 
 const express = require('express')
 const SerialPort = require('serialport')
 const temps = require('ds18b20-raspi')
 const mic = require('mic')
+const execSync = require('child_process').execSync
 //var lame = require('lame')
 
 const tokenParam = 'token'
@@ -31,8 +32,13 @@ const serviceParam = 'service'
 const serviceURL = `/:${tokenParam}/:${serviceParam}/`
 const freqParam = 'freq'
 
+const services = Object.keys(serviceRelays)
+const State = {started: 'active', starting: 'starting', stoped: null, stoping: 'stoping'}
+let serviceState = {}
+services.forEach(service => serviceState[service] = State.stoped)
+
 let whoNow = undefined
-let activeServices = []
+//let activeServices = []
 let authTime = undefined // sec
 const secondsNow = () => Date.now() / 1000
 let audio = undefined
@@ -56,7 +62,7 @@ log('Registering REST services')
 //	res.end()
 //})
 register('/temps', (req, res) => res.send(temps.readAllC()))
-register('/status', (req, res) => res.send({ who: whoNow, servicesOn: activeServices, authTime: authTime }))
+register('/status', (req, res) => res.send({ who: whoNow, servicesO: serviceState, authTime: authTime }))
 register('/stream.wav', audioStream)
 app.use('/smartceiver', express.static('public'))
 app.ws(`/control/:${tokenParam}`, function (ws, req) {
@@ -100,8 +106,11 @@ log(`Opening UART ${uartDev}`)
 const uart = new SerialPort(uartDev,
 	{ baudRate: uartBaudrate },
 	(err) => err && log(`UART ${err.message}`))
-uart.on('open', () => log(`UART opened: ${uartDev} ${uartBaudrate}`))
-//uart.on('data', (data) => log(`UART => ${data}`))
+uart.on('open', () => {
+	log(`UART opened: ${uartDev} ${uartBaudrate}`)
+	sendUart(uartStartSeq)
+})
+uart.on('data', (data) => log(`UART => ${String(data).trim()}`))
 
 log(`Opening TCVR CAT ${tcvrDev}`)
 const tcvr = new SerialPort(tcvrDev, { baudRate: tcvrBaudrate },
@@ -141,7 +150,8 @@ function checkAuthTimeout() {
 
 	if (!authTime || (authTime + authTimeout) < secondsNow()) {
 		log(`auth timeout for ${whoNow}:`)
-		activeServices.forEach(stopService)
+		const startedServices = services.filter(service => serviceState[service] === State.started)
+		startedServices.forEach(stopService)
 	}
 }
 
@@ -169,28 +179,34 @@ function error(res, err, status = 400) {
 }*/
 
 async function startService(service) {
+	const state = serviceState[service]
+	if (state === State.stoping || state === State.starting) {
+		log(`Service ${service} in progress state ${state}, ignoring start`)
+		return
+	}
+
+	serviceState[service] = State.starting
 	if ( ! managePower(service, true)) return
-	const coldStart = ! activeServices.includes(service)
-	if (coldStart) {
-		log(`startService: ${service}`)
+
+	if (state === State.stoped) { // cold start
+		log(`startedService: ${service}`)
 		sendUart(`T${hwWatchdogTimeout}`)
 	}
 
-	activeServices.indexOf(service) === -1 && activeServices.push(service)
+	serviceState[service] = State.started
 }
 
 async function stopService(service) {
-	//if (!activeServices.includes(service)) return
+	serviceState[service] = State.stoping
 	log(`stopService: ${service}`)
 	managePower(service, false)
 	await sleep(1000)
 	managePower(service, false)
+	await sleep(4000)
 
-	//service === tcvrService && stopAudio()
-
-	const index = activeServices.indexOf(service)
-	index !== -1 && activeServices.splice(index, 1)
-	activeServices.length == 0 && (whoNow = authTime = null) // logout
+	serviceState[service] = State.stoped
+	const activeServices = services.filter(service => serviceState[service] !== State.stoped)
+	activeServices.length == 0 && (whoNow = authTime = null, log('logout')) // logout
 }
 
 async function managePower(service, state) {
@@ -208,7 +224,7 @@ async function managePower(service, state) {
 
 //// UART + TCVR CAT 
 function sendUart(cmd) {
-	//log(`UART <= ${cmd.trim()}`)
+	log(`UART <= ${cmd.trim()}`)
 	cmd.length > 1 && (cmd += '\n') // add NL delimiter for cmd with param
 	//log(`UART <= ${cmd}`)
 	uart.write(cmd, (err) => err && log(`UART ${err.message}`))
@@ -245,7 +261,8 @@ function tcvrFreq(f) {
 async function audioStream(req, res) {
 	log('Starting audio stream')
 	res.set({ 'Content-Type': 'audio/wav', 'Transfer-Encoding': 'chunked' })
-	stopAudio()// && await sleep(10000) // stop previously started audio
+	stopAudio() //&& await sleep(1000) // stop previously started audio
+	try { execSync('killall arecord') } catch (e) { /*ignore*/ }
     // stopAudio(() => {
     //   setTimeout(() => {
     //     startAudio(stream => stream.pipe(res))
@@ -257,7 +274,7 @@ async function audioStream(req, res) {
 
 async function startAudio(cb) {
 	log('start audio')
-	await sleep(1000)
+	//await sleep(1000)
 	audio = mic({
 		device: 'plughw:1,0',
 		rate: '8000',
