@@ -21,7 +21,7 @@ const uartCmdByState = state => (state && 'H') || 'L'
 const uartStartSeq = '$OM4AA#'
 
 const express = require('express')
-const expressWss = require('expres-ws')
+const expressWss = require('express-ws')
 const SerialPort = require('serialport')
 const temps = require('ds18b20-raspi')
 const mic = require('mic')
