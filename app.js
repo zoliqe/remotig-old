@@ -4,7 +4,7 @@ const port = 8088
 const tokens = ['OM4AA-1999', 'OM3RRC-1969']
 const authTimeout = 30 // sec
 const hwWatchdogTimeout = 120 // sec
-const heartbeat = 1 // sec
+const heartbeat = 10 // sec
 const tcvrService = 'TCVR'
 const sdrService = 'SDR'
 const serviceRelays = { }
@@ -79,10 +79,10 @@ app.ws(`/control/:${tokenParam}`, function (ws, req) {
 	ws.send('conack')
 	// setTimeout(() => ws.send('conack'), 1000)
 	wsNow = ws
-//	log(`clients=${JSON.stringify(appWs.getWss().clients)}`)
 	log('control open')	
 
 	ws.on('message', msg => {
+		log(`clients=${JSON.stringify(appWs.getWss('/control').clients)}`)
 		authTime = secondsNow()
 		// log('ws:' + msg)
 		if (msg == 'poweron') {
@@ -216,7 +216,7 @@ async function stopService(service) {
 	managePower(service, false)
 	await sleep(1000)
 	managePower(service, false)
-	await sleep(4000)
+	await sleep(2000)
 
 	serviceState[service] = State.off
 	const activeServices = services.filter(service => serviceState[service] !== State.off)
