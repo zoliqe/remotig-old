@@ -13,12 +13,13 @@ serviceRelays[tcvrService] = ['0', '1']
 //const tcvrUrl = 'tcvr'
 const tcvrDev = '/dev/ttyUSB0'
 const tcvrBaudrate = 9600
-const tcvrCivAddr = 0x58
+const tcvrCivAddr = 0x58 // IC-706MKIIG
 const myCivAddr = 224
 const uartDev = '/dev/ttyAMA0'
 const uartBaudrate = 115200
 const uartCmdByState = state => (state && 'H') || 'L'
 const uartStartSeq = '$OM4AA#'
+const uartKeyPttPin = 3
 
 log('Loading modules...')
 const express = require('express')
@@ -94,13 +95,16 @@ app.ws(`/control/:${tokenParam}`, function (ws, req) {
 
 		if (msg == 'poweron') {
 			startService(tcvrService)
-		//sendUart('H0')
+			//sendUart('H0')
 		} else if (msg == 'poweroff') {
 			stopService(tcvrService)
 			stopAudio() // not sure why, but must be called here, not in stopService()
 			//sendUart('L0')
-		} else if (msg == 'keyeren') {
-			sendUart('K5')
+		} else if (msg == 'keyeron') {
+			sendUart(`K${uartKeyPttPin}`)
+		} else if (msg in ['ptton', 'pttoff']) {
+			const state = msg.endsWith('on')
+			sendUart(uartCmdByState(state) + uartKeyPttPin)
 		} else if (['.', '-', '_'].includes(msg)) {
 			sendUart(msg)
 		} else if (msg.startsWith('wpm=')) {
