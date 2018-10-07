@@ -102,7 +102,7 @@ app.ws(`/control/:${tokenParam}`, function (ws, req) {
 			//sendUart('L0')
 		} else if (msg == 'keyeron') {
 			sendUart(`K${uartKeyPttPin}`)
-		} else if (msg in ['ptton', 'pttoff']) {
+		} else if (['ptton', 'pttoff'].includes(msg)) {
 			const state = msg.endsWith('on')
 			sendUart(uartCmdByState(state) + uartKeyPttPin)
 		} else if (['.', '-', '_'].includes(msg)) {
