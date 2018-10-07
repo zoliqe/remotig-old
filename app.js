@@ -76,16 +76,11 @@ app.ws(`/control/:${tokenParam}`, function (ws, req) {
 		return
 	}
 
-	wsNow && wsNow !== ws && wsNow.readyState === WebSocket.OPEN &&
-		(log(`Sending disc to ${JSON.stringify(wsNow)}`), wsNow.send('disc'), wsNow.close()) // disconnect others
-	log(`Sending conack to ${JSON.stringify(ws)}`)
+	disconnectOtherThan(ws)
 	ws.send('conack')
-	// setTimeout(() => ws.send('conack'), 1000)
-	wsNow = ws
 	log('control open')	
 
 	ws.on('message', msg => {
-		appWs.getWss().clients.forEach(client => log(`client=${JSON.stringify(client)}`))
 		authTime = secondsNow()
 		// log('ws:' + msg)
 		if (msg == 'poweron') {
@@ -170,6 +165,12 @@ function checkAuthTimeout() {
 	}
 	log(`auth timeout for ${whoNow}: ${startedServices}`)
 	startedServices.forEach(stopService)
+}
+
+function disconnectOtherThan(currentWs) {
+	appWs.getWss().clients
+		.filter(client => client !== currentWs && client.readyState === WebSocket.OPEN)
+		.forEach(client => client.send('disc')/*, wsNow.close()*/) // disconnect others
 }
 
 function error(res, err, status = 400) {
