@@ -63,15 +63,17 @@ log('Registering REST services')
 //})
 register('/temps', (req, res) => res.send(temps.readAllC()))
 register('/status', (req, res) => res.send({ who: whoNow, servicesO: serviceState, authTime: authTime }))
-register('/stream.wav', audioStream)
+register('/stream/:${tokenParam}', audioStream)
 app.use('/smartceiver', express.static('public'))
 app.ws(`/control/:${tokenParam}`, function (ws, req) {
 	log('control connect')
 	if (!req.authorized) {
 		log('unauthorized ws, terminating')
+		ws.send('disc')
 		ws.terminate()
 		return
 	}
+	ws.send('conack')
 
 	ws.on('message', msg => {
 		authTime = secondsNow()
@@ -91,6 +93,8 @@ app.ws(`/control/:${tokenParam}`, function (ws, req) {
 			sendUart('S' + msg.substring(4))
 		} else if (msg.startsWith('f=')) {
 			tcvrFreq(Number(msg.substring(2)))
+		} else {
+			ws.send('ecmd')
 		}
 		// TODO mode, preamp, attn
 	})
@@ -260,6 +264,11 @@ function tcvrFreq(f) {
 //// RX audio stream
 async function audioStream(req, res) {
 	log('Starting audio stream')
+	if (!req.authorized) {
+		log('auth failed, streaming ignored')
+		error(res, 'EAUTH', 401)
+		return
+	}
 	res.set({ 'Content-Type': 'audio/wav', 'Transfer-Encoding': 'chunked' })
 	stopAudio() //&& await sleep(1000) // stop previously started audio
 	try { execSync('killall arecord') } catch (e) { /*ignore*/ }
