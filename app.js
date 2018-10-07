@@ -45,7 +45,7 @@ let audio = undefined
 
 log('Starting express app')
 const app = express()
-const appWs = require('express-ws')(app)
+const appWs = require('express-ws')(app, null, {wsOptions: {clientTracking: true, verifyClient: (info, cb) => { log(`verifyClient.info=${JSON.stringify(info)}`); cb(true);}}})
 
 app.param(tokenParam, (req, res, next, value) => {
 	const token = req.params[tokenParam] && req.params[tokenParam].toUpperCase()
@@ -74,7 +74,7 @@ app.ws(`/control/:${tokenParam}`, function (ws, req) {
 		return
 	}
 	ws.send('conack')
-	log(`clients=${appWs.getWss().clients}`)
+	log(`clients=${JSON.stringify(appWs.getWss().clients)}`)
 
 	ws.on('message', msg => {
 		authTime = secondsNow()
