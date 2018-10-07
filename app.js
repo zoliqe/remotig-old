@@ -23,6 +23,7 @@ const uartStartSeq = '$OM4AA#'
 log('Loading modules...')
 const express = require('express')
 const expressWss = require('express-ws')
+const WebSocket = require('ws')
 const SerialPort = require('serialport')
 const temps = require('ds18b20-raspi')
 const mic = require('mic')
