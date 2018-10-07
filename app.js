@@ -63,8 +63,8 @@ log('Registering REST services')
 //})
 register('/temps', (req, res) => res.send(temps.readAllC()))
 register('/status', (req, res) => res.send({ who: whoNow, servicesO: serviceState, authTime: authTime }))
-register('/stream/:${tokenParam}', audioStream)
-app.use('/smartceiver/*', express.static('public'))
+register(`/stream/:${tokenParam}`, audioStream)
+app.use('/smartceiver', express.static('public'))
 app.ws(`/control/:${tokenParam}`, function (ws, req) {
 	log('control connect')
 	if (!req.authorized) {
@@ -94,7 +94,7 @@ app.ws(`/control/:${tokenParam}`, function (ws, req) {
 		} else if (msg.startsWith('f=')) {
 			tcvrFreq(Number(msg.substring(2)))
 		} else {
-			ws.send('ecmd')
+			ws.send(`ecmd: ${msg}`)
 		}
 		// TODO mode, preamp, attn
 	})
