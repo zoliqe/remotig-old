@@ -77,13 +77,20 @@ app.ws(`/control/:${tokenParam}`, function (ws, req) {
 		return
 	}
 
-	disconnectOtherThan(ws)
 	ws.send('conack')
-	log('control open')	
+	log('control open')
+	wsNow = ws
 
 	ws.on('message', msg => {
+		if (ws !== wsNow && ws.readyState === WebSocket.OPEN) {
+			log(`Unauthored cmd: ${msg}`)
+			ws.send('disc')
+			ws.close()
+			return
+		}
 		authTime = secondsNow()
 		// log('ws:' + msg)
+
 		if (msg == 'poweron') {
 			startService(tcvrService)
 		//sendUart('H0')
@@ -104,6 +111,8 @@ app.ws(`/control/:${tokenParam}`, function (ws, req) {
 		}
 		// TODO mode, preamp, attn
 	})
+
+	disconnectOtherThan(ws)
 })
 
 const server = app.listen(port, () => log(`Listening on ${port}`))
@@ -170,8 +179,14 @@ function checkAuthTimeout() {
 
 function disconnectOtherThan(currentWs) {
 	appWs.getWss().clients
-		.filter(client => client !== currentWs && client.readyState === WebSocket.OPEN)
-		.forEach(client => client.send('disc')/*, wsNow.close()*/) // disconnect others
+		//.filter(client => client !== currentWs && client.readyState === WebSocket.OPEN)
+		.forEach(client => {
+			if (client !== currentWs && client.readyState === WebSocket.OPEN) {
+				log('Sending client disc')
+				client.send('disc')
+//				client.close()
+			}
+		}) // disconnect others
 }
 
 function error(res, err, status = 400) {
