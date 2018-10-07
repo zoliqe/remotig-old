@@ -33,9 +33,9 @@ const serviceURL = `/:${tokenParam}/:${serviceParam}/`
 const freqParam = 'freq'
 
 const services = Object.keys(serviceRelays)
-const State = {started: 'active', starting: 'starting', stoped: null, stoping: 'stoping'}
+const State = {on: 'active', starting: 'starting', off: null, stoping: 'stoping'}
 let serviceState = {}
-services.forEach(service => serviceState[service] = State.stoped)
+services.forEach(service => serviceState[service] = State.off)
 
 let whoNow = undefined
 //let activeServices = []
@@ -69,16 +69,18 @@ app.use('/smartceiver', express.static('public'))
 app.ws(`/control/:${tokenParam}`, function (ws, req) {
 	log('control connect')
 	if (!req.authorized) {
-		log('unauthorized ws, terminating')
+		log('unauthorized control, terminating connection')
 		ws.send('disc')
 		ws.terminate()
 		return
 	}
 
-	wsNow && wsNow.send('disc') // disconnect others
-	setTimeout(() => ws.send('conack'), 1000)
+	wsNow && (wsNow.send('disc'), wsNow.close()) // disconnect others
+	ws.send('conack')
+	// setTimeout(() => ws.send('conack'), 1000)
 	wsNow = ws
 //	log(`clients=${JSON.stringify(appWs.getWss().clients)}`)
+	log('control open')	
 
 	ws.on('message', msg => {
 		authTime = secondsNow()
@@ -99,7 +101,7 @@ app.ws(`/control/:${tokenParam}`, function (ws, req) {
 		} else if (msg.startsWith('f=')) {
 			tcvrFreq(Number(msg.substring(2)))
 		} else {
-			ws.send(`ecmd: ${msg}`)
+			ws.send(`ecmd: '${msg}'`)
 		}
 		// TODO mode, preamp, attn
 	})
@@ -158,8 +160,8 @@ function checkAuthTimeout() {
 	if (!whoNow) return
 
 	if (!authTime || (authTime + authTimeout) < secondsNow()) {
-		log(`auth timeout for ${whoNow}:`)
-		const startedServices = services.filter(service => serviceState[service] === State.started)
+		const startedServices = services.filter(service => serviceState[service] === State.on)
+		log(`auth timeout for ${whoNow}: ${startedServices}`)
 		startedServices.forEach(stopService)
 	}
 }
@@ -197,12 +199,12 @@ async function startService(service) {
 	serviceState[service] = State.starting
 	if ( ! managePower(service, true)) return
 
-	if (state === State.stoped) { // cold start
+	if (state === State.off) { // cold start
 		log(`startedService: ${service}`)
 		sendUart(`T${hwWatchdogTimeout}`)
 	}
 
-	serviceState[service] = State.started
+	serviceState[service] = State.on
 }
 
 async function stopService(service) {
@@ -213,8 +215,8 @@ async function stopService(service) {
 	managePower(service, false)
 	await sleep(4000)
 
-	serviceState[service] = State.stoped
-	const activeServices = services.filter(service => serviceState[service] !== State.stoped)
+	serviceState[service] = State.off
+	const activeServices = services.filter(service => serviceState[service] !== State.off)
 	activeServices.length == 0 && (whoNow = authTime = null, log('logout')) // logout
 }
 
@@ -275,7 +277,7 @@ async function audioStream(req, res) {
 		return
 	}
 	res.set({ 'Content-Type': 'audio/wav', 'Transfer-Encoding': 'chunked' })
-	stopAudio() //&& await sleep(1000) // stop previously started audio
+	stopAudio() //&& await sleep(1000) // stop previously on audio
 	try { execSync('killall arecord') } catch (e) { /*ignore*/ }
     // stopAudio(() => {
     //   setTimeout(() => {
