@@ -42,6 +42,7 @@ let whoNow = undefined
 let authTime = undefined // sec
 const secondsNow = () => Date.now() / 1000
 let audio = undefined
+let wsNow = undefined
 
 log('Starting express app')
 const app = express()
@@ -73,9 +74,10 @@ app.ws(`/control/:${tokenParam}`, function (ws, req) {
 		ws.terminate()
 		return
 	}
-	
-	ws.send('disc') // disconnect others
+
+	wsNow && wsNow.send('disc') // disconnect others
 	setTimeout(() => ws.send('conack'), 1000)
+	wsNow = ws
 //	log(`clients=${JSON.stringify(appWs.getWss().clients)}`)
 
 	ws.on('message', msg => {
