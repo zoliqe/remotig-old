@@ -21,6 +21,7 @@ const uartCmdByState = state => (state && 'H') || 'L'
 const uartStartSeq = '$OM4AA#'
 
 const express = require('express')
+const expressWss = require('expres-ws')
 const SerialPort = require('serialport')
 const temps = require('ds18b20-raspi')
 const mic = require('mic')
@@ -45,8 +46,8 @@ let audio = undefined
 let wsNow = undefined
 
 log('Starting express app')
-const app = express()
-const appWs = require('express-ws')(app) //, null, {wsOptions: {clientTracking: true, verifyClient: (info, cb) => { log(`verifyClient.info=${JSON.stringify(info)}`); cb(true);}}})
+const appWs = expressWss(express()) //, null, {wsOptions: {clientTracking: true, verifyClient: (info, cb) => { log(`verifyClient.info=${JSON.stringify(info)}`); cb(true);}}})
+const app = appWs.app;
 
 app.param(tokenParam, (req, res, next, value) => {
 	const token = req.params[tokenParam] && req.params[tokenParam].toUpperCase()
@@ -75,14 +76,16 @@ app.ws(`/control/:${tokenParam}`, function (ws, req) {
 		return
 	}
 
-	// wsNow && (wsNow.send('disc'), wsNow.close()) // disconnect others
+	wsNow && wsNow !== ws && wsNow.readyState === WebSocket.OPEN &&
+		(log(`Sending disc to ${JSON.stringify(wsNow)}`), wsNow.send('disc'), wsNow.close()) // disconnect others
+	log(`Sending conack to ${JSON.stringify(ws)}`)
 	ws.send('conack')
 	// setTimeout(() => ws.send('conack'), 1000)
 	wsNow = ws
 	log('control open')	
 
 	ws.on('message', msg => {
-		log(`clients=${JSON.stringify(appWs.getWss('/control').clients)}`)
+		appWs.getWss().clients.forEach(client => log(`client=${JSON.stringify(client)}`))
 		authTime = secondsNow()
 		// log('ws:' + msg)
 		if (msg == 'poweron') {
