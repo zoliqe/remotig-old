@@ -21,7 +21,7 @@ const uartCmdByState = state => (state && 'H') || 'L'
 const uartStartSeq = '$OM4AA#'
 
 const express = require('express')
-const expressWss = require('expres-ws')
+const expressWss = require('express-ws')
 const SerialPort = require('serialport')
 const temps = require('ds18b20-raspi')
 const mic = require('mic')
@@ -82,7 +82,7 @@ app.ws(`/control/:${tokenParam}`, function (ws, req) {
 	ws.send('conack')
 	// setTimeout(() => ws.send('conack'), 1000)
 	wsNow = ws
-	log('control open')	
+	log('control open')
 
 	ws.on('message', msg => {
 		appWs.getWss().clients.forEach(client => log(`client=${JSON.stringify(client)}`))
