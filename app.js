@@ -75,7 +75,7 @@ app.ws(`/control/:${tokenParam}`, function (ws, req) {
 		return
 	}
 
-	wsNow && (wsNow.send('disc'), wsNow.close()) // disconnect others
+	// wsNow && (wsNow.send('disc'), wsNow.close()) // disconnect others
 	ws.send('conack')
 	// setTimeout(() => ws.send('conack'), 1000)
 	wsNow = ws
@@ -158,12 +158,15 @@ function whoIn(token) {
 
 function checkAuthTimeout() {
 	if (!whoNow) return
+	if (!authTime || (authTime + authTimeout) > secondsNow()) return
 
-	if (!authTime || (authTime + authTimeout) < secondsNow()) {
-		const startedServices = services.filter(service => serviceState[service] === State.on)
-		log(`auth timeout for ${whoNow}: ${startedServices}`)
-		startedServices.forEach(stopService)
+	const startedServices = services.filter(service => serviceState[service] === State.on)
+	if (startedServices.length == 0) {
+		logout()
+		return
 	}
+	log(`auth timeout for ${whoNow}: ${startedServices}`)
+	startedServices.forEach(stopService)
 }
 
 function error(res, err, status = 400) {
@@ -217,7 +220,12 @@ async function stopService(service) {
 
 	serviceState[service] = State.off
 	const activeServices = services.filter(service => serviceState[service] !== State.off)
-	activeServices.length == 0 && (whoNow = authTime = null, log('logout')) // logout
+	activeServices.length == 0 && logout()
+}
+
+function logout() {
+	whoNow = authTime = null
+	log('logout')
 }
 
 async function managePower(service, state) {
