@@ -74,6 +74,7 @@ app.ws(`/control/:${tokenParam}`, function (ws, req) {
 		return
 	}
 	ws.send('conack')
+	log(`clients=${appWs.getWss().clients}`)
 
 	ws.on('message', msg => {
 		authTime = secondsNow()
