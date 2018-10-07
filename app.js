@@ -20,6 +20,7 @@ const uartBaudrate = 115200
 const uartCmdByState = state => (state && 'H') || 'L'
 const uartStartSeq = '$OM4AA#'
 
+log('Loading modules...')
 const express = require('express')
 const expressWss = require('express-ws')
 const SerialPort = require('serialport')
