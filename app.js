@@ -95,7 +95,7 @@ app.ws(`/control/:${tokenParam}`, function (ws, req) {
 			return
 		}
 		authTime = secondsNow()
-		// log('ws:' + msg)
+		log('cmd: ' + msg)
 
 		if (msg == 'poweron') {
 			startService(tcvrService)
@@ -124,12 +124,11 @@ app.ws(`/control/:${tokenParam}`, function (ws, req) {
 			tcvrPreamp(msg.endsWith('on'))
 		} else if (['attnon', 'attnoff'].includes(msg)) {
 			tcvrAttn(msg.endsWith('on'))
-		} else if (msg.startsWith('agc=')) {
-			tcvrAgc(Number(msg.substring(4)))
+		} else if (['agcon', 'agcoff'].includes(msg)) {
+			tcvrAgc(msg.endsWith('on'))
 		} else {
 			ws.send(`ecmd: '${msg}'`)
 		}
-		// TODO mode, preamp, attn
 	})
 
 	disconnectOtherThan(ws)
@@ -321,49 +320,53 @@ function tcvrFreq(f) {
 	// log(`f=${f}`)
 	const hz10 = Math.floor(f / 10) * 10 // 10Hz
 
-	const data = [254, 254, // 0xFE 0xFE
+	const data = [0xFE, 0xFE,
 		tcvrCivAddr, myCivAddr, 0, // 0: transfer Freq CMD w/o reply .. 5: set Freq CMD with reply
 		hex2dec(hz10), hex2dec(hz1000_100), hex2dec(khz100_10), hex2dec(mhz10_1), 0, // freq always < 100MHz
-		253] // 0xFD
+		0xFD]
 	// log(`TCVR f: ${data}`)
 	tcvr.write(data, (err) => err && log(`TCVR ${err.message}`))
 }
 
 const modeValues = {
-	LSB: 0, USB: 1, AM: 2, CW: 3, RTTY: 4, FM: 5, WFM: 6
+	LSB: 0x00, USB: 0x01, AM: 0x02, CW: 0x03, RTTY: 0x04, FM: 0x05, WFM: 0x06
 }
 
 function tcvrMode(mode) {
 	const value = modeValues[mode]
 	if (value === null) return
 
-	const data = [254, 254, // 0xFE 0xFE
-		tcvrCivAddr, myCivAddr, 0x06, value, 0x00,
-		253] // 0xFD
+	log(`tcvrMode: ${mode} => ${value}`)
+	const data = [0xFE, 0xFE,
+		tcvrCivAddr, myCivAddr, 0x06, value, 0x01,
+		0xFD]
 	tcvr.write(data, (err) => err && log(`TCVR ${err.message}`))
 }
 
 function tcvrAttn(state) {
+	log(`tcvrAttn: ${state}`)
 	const value = state ? 0x20 : 0
-	const data = [254, 254, // 0xFE 0xFE
+	const data = [0xFE, 0xFE,
 		tcvrCivAddr, myCivAddr, 0x11, value,
-		253] // 0xFD
+		0xFD]
 	tcvr.write(data, (err) => err && log(`TCVR ${err.message}`))
 }
 
 function tcvrPreamp(state) {
+	log(`tcvrPreamp: ${state}`)
 	const value = state ? 0x01 : 0
-	const data = [254, 254, // 0xFE 0xFE
+	const data = [0xFE, 0xFE,
 		tcvrCivAddr, myCivAddr, 0x16, 0x02, value,
-		253] // 0xFD
+		0xFD]
 	tcvr.write(data, (err) => err && log(`TCVR ${err.message}`))
 }
 
-function tcvrAgc(value) {
-	if (value < 0 || value > 3) return
-	const data = [254, 254, // 0xFE 0xFE
+function tcvrAgc(state) {
+	const value = state ? 0x01 : 0x02
+	log(`tcvrAgc: ${state}`)
+	const data = [0xFE, 0xFE,
 		tcvrCivAddr, myCivAddr, 0x16, 0x12, value,
-		253] // 0xFD
+		0xFD]
 	tcvr.write(data, (err) => err && log(`TCVR ${err.message}`))
 }
 
