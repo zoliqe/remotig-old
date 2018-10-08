@@ -95,7 +95,7 @@ app.ws(`/control/:${tokenParam}`, function (ws, req) {
 			return
 		}
 		authTime = secondsNow()
-		log('cmd: ' + msg)
+		// log('cmd: ' + msg)
 
 		if (msg == 'poweron') {
 			startService(tcvrService)
@@ -148,13 +148,13 @@ uart.on('open', () => {
 	log(`UART opened: ${uartDev} ${uartBaudrate}`)
 	sendUart(uartStartSeq)
 })
-uart.on('data', (data) => log(`UART => ${String(data).trim()}`))
+// uart.on('data', (data) => log(`UART => ${String(data).trim()}`))
 
 log(`Opening TCVR CAT ${tcvrDev}`)
 const tcvr = new SerialPort(tcvrDev, { baudRate: tcvrBaudrate },
 	(err) => err && log(`TCVR ${err.message}`))
 tcvr.on('open', () => log(`TCVR opened: ${tcvrDev} ${tcvrBaudrate}`))
-tcvr.on('data', (data) => log(`TCVR => ${data}`))
+// tcvr.on('data', (data) => log(`TCVR => ${data}`))
 
 function log(str) {
 	console.log(new Date().toISOString() + ' ' + str)
@@ -295,9 +295,8 @@ async function managePower(service, state) {
 
 //// UART + TCVR CAT 
 function sendUart(cmd) {
-	log(`UART <= ${cmd.trim()}`)
+	// log(`UART <= ${cmd.trim()}`)
 	cmd.length > 1 && (cmd += '\n') // add NL delimiter for cmd with param
-	//log(`UART <= ${cmd}`)
 	uart.write(cmd, (err) => err && log(`UART ${err.message}`))
 }
 
