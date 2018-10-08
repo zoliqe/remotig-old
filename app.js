@@ -20,6 +20,8 @@ const uartBaudrate = 115200
 const uartCmdByState = state => (state && 'H') || 'L'
 const uartStartSeq = '$OM4AA#'
 const uartKeyPttPin = 3
+const pttEnabled = true
+const pttTimeout = 5 // sec
 
 log('Loading modules...')
 const express = require('express')
@@ -32,9 +34,9 @@ const execSync = require('child_process').execSync
 //var lame = require('lame')
 
 const tokenParam = 'token'
-const serviceParam = 'service'
-const serviceURL = `/:${tokenParam}/:${serviceParam}/`
-const freqParam = 'freq'
+// const serviceParam = 'service'
+// const serviceURL = `/:${tokenParam}/:${serviceParam}/`
+// const freqParam = 'freq'
 
 const services = Object.keys(serviceRelays)
 const State = {on: 'active', starting: 'starting', off: null, stoping: 'stoping'}
@@ -44,6 +46,7 @@ services.forEach(service => serviceState[service] = State.off)
 let whoNow = undefined
 //let activeServices = []
 let authTime = undefined // sec
+let pttTime = undefined
 const secondsNow = () => Date.now() / 1000
 let audio = undefined
 let wsNow = undefined
@@ -82,6 +85,7 @@ app.ws(`/control/:${tokenParam}`, function (ws, req) {
 	ws.send('conack')
 	log('control open')
 	wsNow = ws
+	sendUart(uartCmdByState(false) + uartKeyPttPin) // ptt off
 
 	ws.on('message', msg => {
 		if (ws !== wsNow && ws.readyState === WebSocket.OPEN) {
@@ -104,13 +108,24 @@ app.ws(`/control/:${tokenParam}`, function (ws, req) {
 			sendUart(`K${uartKeyPttPin}`)
 		} else if (['ptton', 'pttoff'].includes(msg)) {
 			const state = msg.endsWith('on')
-			sendUart(uartCmdByState(state) + uartKeyPttPin)
+			if (!state || pttEnabled) { // ptt on only when enabled
+				sendUart(uartCmdByState(state) + uartKeyPttPin)
+				pttTime = state ? secondsNow() : undefined
+			}
 		} else if (['.', '-', '_'].includes(msg)) {
 			sendUart(msg)
 		} else if (msg.startsWith('wpm=')) {
 			sendUart('S' + msg.substring(4))
 		} else if (msg.startsWith('f=')) {
 			tcvrFreq(Number(msg.substring(2)))
+		} else if (msg.startsWith('mode=')) {
+			tcvrMode(msg.substring(5).toUpperCase())
+		} else if (['preampon', 'preampoff'].includes(msg)) {
+			tcvrPreamp(msg.endsWith('on'))
+		} else if (['attnon', 'attnoff'].includes(msg)) {
+			tcvrAttn(msg.endsWith('on'))
+		} else if (msg.startsWith('agc=')) {
+			tcvrAgc(Number(msg.substring(4)))
 		} else {
 			ws.send(`ecmd: '${msg}'`)
 		}
@@ -124,7 +139,7 @@ const server = app.listen(port, () => log(`Listening on ${port}`))
 
 
 log(`Activating heartbeat every ${heartbeat} s`)
-setInterval(checkAuthTimeout, heartbeat * 1000)
+setInterval(tick, heartbeat * 1000)
 
 log(`Opening UART ${uartDev}`)
 const uart = new SerialPort(uartDev,
@@ -167,6 +182,19 @@ function whoIn(token) {
 	if (!token) return null
 	const delPos = token.indexOf('-')
 	return delPos > 3 ? token.substring(0, delPos).toUpperCase() : null
+}
+
+function tick() {
+	checkPttTimeout();
+	checkAuthTimeout();
+}
+
+function checkPttTimeout() {
+	if (!pttTime) return
+	if (pttTime + pttTimeout > secondsNow()) return
+
+	sendUart(uartCmdByState(false) + uartKeyPttPin) // ptt off
+	pttTime = undefined
 }
 
 function checkAuthTimeout() {
@@ -298,6 +326,44 @@ function tcvrFreq(f) {
 		hex2dec(hz10), hex2dec(hz1000_100), hex2dec(khz100_10), hex2dec(mhz10_1), 0, // freq always < 100MHz
 		253] // 0xFD
 	// log(`TCVR f: ${data}`)
+	tcvr.write(data, (err) => err && log(`TCVR ${err.message}`))
+}
+
+const modeValues = {
+	LSB: 0, USB: 1, AM: 2, CW: 3, RTTY: 4, FM: 5, WFM: 6
+}
+
+function tcvrMode(mode) {
+	const value = modeValues[mode]
+	if (value === null) return
+
+	const data = [254, 254, // 0xFE 0xFE
+		tcvrCivAddr, myCivAddr, 0x06, value, 0x00,
+		253] // 0xFD
+	tcvr.write(data, (err) => err && log(`TCVR ${err.message}`))
+}
+
+function tcvrAttn(state) {
+	const value = state ? 0x20 : 0
+	const data = [254, 254, // 0xFE 0xFE
+		tcvrCivAddr, myCivAddr, 0x11, value,
+		253] // 0xFD
+	tcvr.write(data, (err) => err && log(`TCVR ${err.message}`))
+}
+
+function tcvrPreamp(state) {
+	const value = state ? 0x01 : 0
+	const data = [254, 254, // 0xFE 0xFE
+		tcvrCivAddr, myCivAddr, 0x16, 0x02, value,
+		253] // 0xFD
+	tcvr.write(data, (err) => err && log(`TCVR ${err.message}`))
+}
+
+function tcvrAgc(value) {
+	if (value < 0 || value > 3) return
+	const data = [254, 254, // 0xFE 0xFE
+		tcvrCivAddr, myCivAddr, 0x16, 0x12, value,
+		253] // 0xFD
 	tcvr.write(data, (err) => err && log(`TCVR ${err.message}`))
 }
 
