@@ -1,7 +1,7 @@
 //import { * as express } from 'expres';
 
 const port = 8088
-const tokens = ['OM4AA-1999', 'OM3RRC-1969']
+const tokens = require('./auth.js').tokens
 const authTimeout = 30 // sec
 const hwWatchdogTimeout = 120 // sec
 const heartbeat = 10 // sec
