@@ -113,7 +113,7 @@ app.ws(`/control/:${tokenParam}`, function (ws, req) {
 				pttTime = state ? secondsNow() : undefined
 			}
 		} else if (['.', '-', '_'].includes(msg)) {
-			sendUart(msg)
+			sendUart(msg) // TODO add buffering space
 		} else if (msg.startsWith('wpm=')) {
 			sendUart('S' + msg.substring(4))
 		} else if (msg.startsWith('f=')) {
@@ -293,7 +293,7 @@ async function managePower(service, state) {
 	return true
 }
 
-//// UART + TCVR CAT 
+//// UART + TCVR CAT
 function sendUart(cmd) {
 	// log(`UART <= ${cmd.trim()}`)
 	cmd.length > 1 && (cmd += '\n') // add NL delimiter for cmd with param
@@ -460,11 +460,11 @@ audioStream.on('startComplete', function() {
             audio.pause();
     }, 5000);
 });
-    
+
 audioStream.on('stopComplete', function() {
     console.log("Got SIGNAL stopComplete");
 });
-    
+
 audioStream.on('pauseComplete', function() {
     console.log("Got SIGNAL pauseComplete");
     setTimeout(function() {
