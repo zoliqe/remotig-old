@@ -50,6 +50,22 @@ let pttTime = undefined
 const secondsNow = () => Date.now() / 1000
 let audio = undefined
 let wsNow = undefined
+let lastKeyed = Date.now()
+let _wpm = 0
+let _spaceMillis = 0
+
+get wpm() {
+	return _wpm
+}
+
+set wpm(value) {
+	_wpm = value
+	_spaceMillis = 3600 / _wpm
+}
+
+get spaceMillis() {
+	return _spaceMillis
+}
 
 log('Starting express app')
 const appWs = expressWss(express()) //, null, {wsOptions: {clientTracking: true, verifyClient: (info, cb) => { log(`verifyClient.info=${JSON.stringify(info)}`); cb(true);}}})
@@ -106,6 +122,9 @@ app.ws(`/control/:${tokenParam}`, function (ws, req) {
 			//sendUart('L0')
 		} else if (msg == 'keyeron') {
 			sendUart(`K${uartKeyPttPin}`)
+			lastKeyed = Date.now()
+		} else if (msg == 'keyeroff') {
+			wpm  = 0
 		} else if (['ptton', 'pttoff'].includes(msg)) {
 			const state = msg.endsWith('on')
 			if (!state || pttEnabled) { // ptt on only when enabled
@@ -113,9 +132,16 @@ app.ws(`/control/:${tokenParam}`, function (ws, req) {
 				pttTime = state ? secondsNow() : undefined
 			}
 		} else if (['.', '-', '_'].includes(msg)) {
-			sendUart(msg) // TODO add buffering space
+			if (wpm > 0) {
+				if (lastKeyed + spaceMillis < Date.now()) {
+					sendUart('-') // on longer pause btw elements send buffering space
+				}
+				sendUart(msg)
+				lastKeyed = Date.now()
+			}
 		} else if (msg.startsWith('wpm=')) {
-			sendUart('S' + msg.substring(4))
+			wpm = Number(msg.substring(4))
+			sendUart('S' + wpm)
 		} else if (msg.startsWith('f=')) {
 			tcvrFreq(Number(msg.substring(2)))
 		} else if (msg.startsWith('mode=')) {
