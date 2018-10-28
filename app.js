@@ -50,21 +50,43 @@ let pttTime = undefined
 const secondsNow = () => Date.now() / 1000
 let audio = undefined
 let wsNow = undefined
-let lastKeyed = Date.now()
-let _wpm = 0
-let _spaceMillis = 0
+let keyer = null
 
-get wpm() {
-	return _wpm
-}
+class Keyer {
 
-set wpm(value) {
-	_wpm = value
-	_spaceMillis = 3600 / _wpm
-}
+	constructor(keyerSend, pin) {
+		this._lastKeyed = Date.now()
+		this._wpm = 0
+		this._spaceMillis = 0
+		this._uart = keyerSend
+		this._uart(`K${pin}`)
+	}
 
-get spaceMillis() {
-	return _spaceMillis
+	send(msg) {
+		if (wpm < 1) return
+		if (this._lastKeyed + this._spaceMillis < Date.now()) {
+			this._uart('_') // on longer pause btw elements send buffering space
+		}
+		this._uart(msg)
+		this._lastKeyed = Date.now()
+	}
+
+	get wpm() {
+		return _wpm
+	}
+
+	set wpm(value) {
+		this._wpm = Number(value)
+		if (this._wpm < 1) return
+
+		this._spaceMillis = 3600 / this._wpm
+		this._uart('S' + this._wpm)
+	}
+
+	get spaceMillis() {
+		return _spaceMillis
+	}
+
 }
 
 log('Starting express app')
@@ -120,28 +142,20 @@ app.ws(`/control/:${tokenParam}`, function (ws, req) {
 			stopService(tcvrService)
 			stopAudio() // not sure why, but must be called here, not in stopService()
 			//sendUart('L0')
-		} else if (msg == 'keyeron') {
-			sendUart(`K${uartKeyPttPin}`)
-			lastKeyed = Date.now()
-		} else if (msg == 'keyeroff') {
-			wpm  = 0
 		} else if (['ptton', 'pttoff'].includes(msg)) {
 			const state = msg.endsWith('on')
 			if (!state || pttEnabled) { // ptt on only when enabled
 				sendUart(uartCmdByState(state) + uartKeyPttPin)
 				pttTime = state ? secondsNow() : undefined
 			}
+		} else if (msg == 'keyeron') {
+			keyer = new Keyer(sendUart, uartKeyPttPin)
+		} else if (msg == 'keyeroff') {
+			keyer = null
 		} else if (['.', '-', '_'].includes(msg)) {
-			if (wpm > 0) {
-				if (lastKeyed + spaceMillis < Date.now()) {
-					sendUart('-') // on longer pause btw elements send buffering space
-				}
-				sendUart(msg)
-				lastKeyed = Date.now()
-			}
+			keyer && keyer.send(msg)
 		} else if (msg.startsWith('wpm=')) {
-			wpm = Number(msg.substring(4))
-			sendUart('S' + wpm)
+			keyer && (keyer.wpm = msg.substring(4))
 		} else if (msg.startsWith('f=')) {
 			tcvrFreq(Number(msg.substring(2)))
 		} else if (msg.startsWith('mode=')) {
