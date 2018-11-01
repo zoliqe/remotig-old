@@ -22,6 +22,14 @@ const uartStartSeq = '$OM4AA#'
 const uartKeyPttPin = 3
 const pttEnabled = true
 const pttTimeout = 5 // sec
+const micOptions = {
+	device: 'plughw:1,0',
+	rate: '8000',
+	channels: '1',
+	fileType: 'wav',
+	debug: true,
+	// exitOnSilence: 6
+}
 
 log('Loading modules...')
 const express = require('express')
@@ -432,14 +440,7 @@ async function audioStream(req, res) {
 async function startAudio(cb) {
 	log('start audio')
 	//await sleep(1000)
-	audio = mic({
-		device: 'plughw:1,0',
-		rate: '8000',
-		channels: '1',
-		fileType: 'wav',
-		debug: true,
-		// exitOnSilence: 6
-	})
+	audio = mic(micOptions)
 
 	// audioStream = audio.getAudioStream();
 	audio.getAudioStream().on('startComplete', () => {
