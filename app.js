@@ -23,7 +23,7 @@ const uartKeyPttPin = 3
 const pttEnabled = true
 const pttTimeout = 5 // sec
 const micOptions = {
-	device: 'plughw:1,0',
+	device: 'plughw:0,0',
 	rate: '8000',
 	channels: '1',
 	fileType: 'wav',
@@ -119,6 +119,7 @@ register('/temps', (req, res) => res.send(temps.readAllC()))
 register('/status', (req, res) => res.send({ who: whoNow, servicesO: serviceState, authTime: authTime }))
 register(`/stream/:${tokenParam}`, audioStream)
 app.use('/smartceiver', express.static('public'))
+app.use('/', express.static('powron'))
 app.ws(`/control/:${tokenParam}`, function (ws, req) {
 	log('control connect')
 	if (!req.authorized) {

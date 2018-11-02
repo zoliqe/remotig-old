@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta http-equiv="X-UA-Compatible" content="ie=edge">
+	<title>PowerOn</title>
+	<!--<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">-->
+	<!--<link rel="stylesheet" href="https://code.getmdl.io/1.3.0/material.indigo-pink.min.css">-->
+	<!--<script defer src="https://code.getmdl.io/1.3.0/material.min.js"></script>-->
+	<link rel="stylesheet" href="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.css">
+	<script defer src="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.js"></script>
+
+	<style>
+		ul {
+			list-style-type: none;
+		}
+		li {
+			margin: 1em;
+		}
+	</style>
+</head>
+<body>
+	<ul>
+		<li>
+			<div class="mdc-text-field mdc-text-field--outlined mdc-text-field--disabled">
+				Operator: <input class="mdc-text-field__input" type="text" id="who" disabled>
+				<!-- <label for="who">Operator</label> -->
+			</div>
+		</li>
+		<li>
+			<div class="mdc-text-field mdc-text-field--outlined">
+				<input class="mdc-text-field__input" type="text" id="op" required minlength="5">
+				<label class="mdc-floating-label" for="op">Call</label>
+				<div class="mdc-notched-outline"><svg><path class="mdc-notched-outline__path"/></svg></div>
+				<div class="mdc-notched-outline__idle"></div>
+			</div>
+			<div class="mdc-text-field mdc-text-field--outlined">
+				<input class="mdc-text-field__input" type="password" id="pin" required minlength="4">
+				<label class="mdc-floating-label" for="pin">PIN</label>
+				<div class="mdc-notched-outline"><svg><path class="mdc-notched-outline__path"/></svg></div>
+				<div class="mdc-notched-outline__idle"></div>
+			</div>
+		</li>
+		<li>
+			<button id="tcvr" disabled class="mdc-button mdc-button--raised mdc-ripple-surface">
+				Transceiver
+			</button>
+		</li>
+		<li>
+			<span id="status"></span>
+		</li>
+	</ul>
+
+	<script>
+		let op = ''
+		let pin = ''
+		const txtOp = document.querySelector('#op')
+		const txtPin = document.querySelector('#pin')
+		const btnTcvr = document.querySelector('#tcvr')
+		const txtWho = document.querySelector('#who')
+		const txtStatus = document.querySelector('#status')
+		
+		function onChange(event) {
+			op = txtOp.value
+			pin = txtPin.value
+			// console.log('who=', who)
+			btnTcvr.disabled = op.length < 5 || pin.length < 4
+		}
+	
+		function onClick(event) {
+			console.log('power=on, who:', op)
+			location = `/smartceiver/?token=${op.toLowerCase()}-${pin}`
+		}
+	
+		function fetchWho() {
+			fetch(new Request('status'))
+				.then((response) => response.json())
+				.then((status) => txtWho.value = status.who)
+		}
+
+		function fetchTemps() {
+			fetch(new Request('temps'))
+				.then((response) => response.json())
+				.then((temps) => {
+					let s = ''
+					temps.forEach(temp => s += `${temp.id} = ${temp.t}<br>`)
+					txtStatus.innerHTML = s
+				})
+		}
+
+		setInterval(fetchWho, 1000)
+		setInterval(fetchTemps, 10000)
+		txtOp.addEventListener("keyup", onChange)
+		txtPin.addEventListener("keyup", onChange)
+		btnTcvr.addEventListener("click", onClick)
+	</script>
+</body>
+</html>
