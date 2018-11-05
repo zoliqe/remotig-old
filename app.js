@@ -23,7 +23,7 @@ const uartKeyPttPin = 3
 const pttEnabled = true
 const pttTimeout = 5 // sec
 const micOptions = {
-	device: 'plughw:0,0',
+	device: 'plughw:1,0',
 	rate: '8000',
 	channels: '1',
 	fileType: 'wav',
@@ -36,7 +36,6 @@ const express = require('express')
 const expressWss = require('express-ws')
 const WebSocket = require('ws')
 const SerialPort = require('serialport')
-const temps = require('ds18b20-raspi')
 const mic = require('mic')
 const execSync = require('child_process').execSync
 //var lame = require('lame')
@@ -115,7 +114,6 @@ log('Registering REST services')
 //	tcvrFreq(req.params[freqParam] && Number(req.params[freqParam]).toFixed(0))
 //	res.end()
 //})
-register('/temps', (req, res) => res.send(temps.readAllC()))
 register('/status', (req, res) => res.send({ who: whoNow, servicesO: serviceState, authTime: authTime }))
 register(`/stream/:${tokenParam}`, audioStream)
 app.use('/smartceiver', express.static('public'))

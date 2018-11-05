@@ -79,18 +79,7 @@
 				.then((status) => txtWho.value = status.who)
 		}
 
-		function fetchTemps() {
-			fetch(new Request('temps'))
-				.then((response) => response.json())
-				.then((temps) => {
-					let s = ''
-					temps.forEach(temp => s += `${temp.id} = ${temp.t}<br>`)
-					txtStatus.innerHTML = s
-				})
-		}
-
 		setInterval(fetchWho, 1000)
-		setInterval(fetchTemps, 10000)
 		txtOp.addEventListener("keyup", onChange)
 		txtPin.addEventListener("keyup", onChange)
 		btnTcvr.addEventListener("click", onClick)
