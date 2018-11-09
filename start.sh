@@ -7,4 +7,4 @@ systemctl stop serial-getty@ttyAMA0.service
 cd /root/remotig
 echo "node app.js"
 log="remotig-`date \"+%Y%m%d\"`.log"
-/root/node/bin/node app.js >>${log} 2>&1 &
+nice --20 /root/node/bin/node app.js >>${log} 2>&1 &

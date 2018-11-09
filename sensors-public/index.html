@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta http-equiv="X-UA-Compatible" content="ie=edge">
+	<title>Sensors</title>
+	<link rel="stylesheet" href="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.css">
+	<script defer src="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.js"></script>
+
+	<style>
+		ul {
+			list-style-type: none;
+		}
+		li {
+			margin: 1em;
+		}
+	</style>
+</head>
+<body>
+	<ul>
+		<li>
+			<span id="status">Loading sensors data...</span>
+		</li>
+	</ul>
+
+	<script>
+const kilo = 1024
+const mega = kilo * 1024
+const sec2hour = 3600
+const txtStatus = document.querySelector('#status')
+
+function fetchTemps() {
+	fetch(new Request('temps'))
+		.then((response) => response.json())
+		.then((temps) => {
+			let s = 'temp:<br>'
+			temps.forEach(temp => s += `${temp.name} = ${temp.t} C<br>`)
+			s += `localtime = ${new Date().toUTCString()}<br>`
+			txtStatus.innerHTML = s
+			fetchSysinfo()
+		})
+}
+
+function fetchSysinfo() {
+	fetch(new Request('sysinfo'))
+		.then(resp => resp.json())
+		.then(si => {
+			let s = ''
+			const date = new Date()
+			if (si.time) {
+				s += 'time:<br>'
+				si.time.current && date.setTime(Number(si.time.current))
+				s += `current time = ${date.toUTCString()}<br>`
+				si.time.uptime && (s += `uptime = ${Number(si.time.uptime / sec2hour).toFixed(2)} hr<br>`)
+			}
+			if (si.cpu) {
+				s += 'cpu:<br>'
+				si.cpu.speed && (s += `speed = ${si.cpu.speed} GHz<br>`)
+				si.cpu.load && (s += `load = ${Number(si.cpu.load).toFixed(2)} %<br>`)
+				si.cpu.temp && (s += `temp = ${si.cpu.temp} C<br>`)
+			}
+			if (si.mem) {
+				s += 'mem:<br>'
+				si.mem.avail && (s += `avail = ${(Number(si.mem.avail) / mega).toFixed(0)} MB<br>`)
+				si.mem.used && (s += `used = ${(Number(si.mem.used) / mega).toFixed(0)} MB<br>`)
+			}
+			if (si.net) {
+				s += 'net:<br>'
+				si.net.rx && (s += `total rx = ${(Number(si.net.rx) / mega).toFixed(2)} MB<br>`)
+				si.net.tx && (s += `total tx = ${(Number(si.net.tx) / mega).toFixed(2)} MB<br>`)
+				si.net.rx_sec && (s += `rx = ${(Number(si.net.rx_sec) / kilo).toFixed(2)} kBps<br>`)
+				si.net.tx_sec && (s += `tx = ${(Number(si.net.tx_sec) / kilo).toFixed(2)} kBps<br>`)
+			}
+			txtStatus.innerHTML += s
+		})
+}
+
+fetchTemps()
+setInterval(fetchTemps, 60 * 1000)
+	</script>
+</body>
+</html>
