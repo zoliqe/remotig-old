@@ -24,7 +24,7 @@ const pttEnabled = true
 const pttTimeout = 5 // sec
 const micOptions = {
 	device: 'plughw:1,0',
-	rate: '8000',
+	rate: '4000',
 	channels: '1',
 	fileType: 'wav',
 	debug: true,
