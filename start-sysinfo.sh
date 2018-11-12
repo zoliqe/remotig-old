@@ -7,6 +7,6 @@ modprobe w1-therm
 
 # node
 cd /root/remotig
-echo "node sensors.js"
-log="sensors-`date \"+%Y%m%d\"`.log"
-nice -19 /root/node/bin/node sensors.js >>${log} 2>&1 &
+echo "node sysinfo.js"
+log="sysinfo-`date \"+%Y%m\"`.log"
+nice -19 /root/node/bin/node sysinfo.js >>${log} 2>&1 &

@@ -116,8 +116,8 @@ log('Registering REST services')
 //})
 register('/status', (req, res) => res.send({ who: whoNow, services: serviceState, authTime: authTime }))
 register(`/stream/:${tokenParam}`, audioStream)
-app.use('/smartceiver', express.static('public'))
-app.use('/', express.static('powron'))
+app.use('/smartceiver', express.static('smartceiver'))
+app.use('/', express.static('remotig'))
 app.ws(`/control/:${tokenParam}`, function (ws, req) {
 	log('control connect')
 	if (!req.authorized) {
