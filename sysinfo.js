@@ -2,7 +2,7 @@ const port = 8089
 const nameById = {'28-02150300c6ff': 'exterier', '28-03150405abff': 'interier', '28-031730bb43ff': 'rack'}
 
 log('===================================================')
-log('================ Starting sensors =================')
+log('================ Starting sysinfo =================')
 log('Loading modules...')
 const express = require('express')
 const temps = require('ds18b20-raspi')
@@ -18,7 +18,7 @@ register('/temps', (req, res) => {
 	res.send(sensors)
 })
 register('/sysinfo', getSysinfo)
-app.use('/', express.static('sensors-public'))
+app.use('/', express.static('sysinfo'))
 
 const server = app.listen(port, () => log(`Listening on ${port}`))
 
