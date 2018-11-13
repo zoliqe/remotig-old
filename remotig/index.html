@@ -31,13 +31,13 @@
 		<li>
 			<div class="mdc-text-field mdc-text-field--outlined">
 				<input class="mdc-text-field__input" type="text" id="op" required minlength="5">
-				<label class="mdc-floating-label" for="op">Call</label>
+				<label class="---mdc-floating-label" for="op">Call</label>
 				<div class="mdc-notched-outline"><svg><path class="mdc-notched-outline__path"/></svg></div>
 				<div class="mdc-notched-outline__idle"></div>
 			</div>
 			<div class="mdc-text-field mdc-text-field--outlined">
 				<input class="mdc-text-field__input" type="password" id="pin" required minlength="4">
-				<label class="mdc-floating-label" for="pin">PIN</label>
+				<label class="---mdc-floating-label" for="pin">PIN</label>
 				<div class="mdc-notched-outline"><svg><path class="mdc-notched-outline__path"/></svg></div>
 				<div class="mdc-notched-outline__idle"></div>
 			</div>
@@ -76,7 +76,7 @@
 		function fetchWho() {
 			fetch(new Request('status'))
 				.then((response) => response.json())
-				.then((status) => txtWho.value = status.who)
+				.then((status) => txtWho.value = status.who || '')
 		}
 
 		setInterval(fetchWho, 1000)
