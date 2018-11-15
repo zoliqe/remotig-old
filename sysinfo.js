@@ -45,7 +45,7 @@ async function getSysinfo(req, res) {
 		const net  = await sysinfo.networkStats('eth0')
 		si.net = {'rx': net.rx, 'tx': net.tx, 'rx_sec': net.rx_sec, 'tx_sec': net.tx_sec}
 		si.net.pings = []
-		for (let i = 0; i < 10; i++) si.net.pings.push(await sysinfo.inetLatency('10.0.0.3'))
+		for (let i = 0; i < 3; i++) si.net.pings.push(await sysinfo.inetLatency('10.0.0.3'))
 	} catch (e) {
 		si.error = e
 		log(`sysinfo() error: ${e}`)
