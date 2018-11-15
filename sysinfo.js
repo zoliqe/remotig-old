@@ -35,17 +35,19 @@ async function getSysinfo(req, res) {
 	let si = {}
 	try {
 		const time = await sysinfo.time()
-		si['time'] = {'current': time.current, 'uptime': time.uptime}
+		si.time = {'current': time.current, 'uptime': time.uptime}
 		const speed = await sysinfo.cpuCurrentspeed()
 		const temp = await sysinfo.cpuTemperature()
 		const load = await sysinfo.currentLoad()
-		si['cpu'] = {'speed': speed.avg, 'load': load.currentload, 'temp': temp.main}
+		si.cpu = {'speed': speed.avg, 'load': load.currentload, 'temp': temp.main}
 		const mem = await sysinfo.mem()
-		si['mem'] = {'avail': mem.available, 'used': mem.used}
+		si.mem = {'avail': mem.available, 'used': mem.used}
 		const net  = await sysinfo.networkStats('eth0')
-		si['net'] = {'rx': net.rx, 'tx': net.tx, 'rx_sec': net.rx_sec, 'tx_sec': net.tx_sec}
+		si.net = {'rx': net.rx, 'tx': net.tx, 'rx_sec': net.rx_sec, 'tx_sec': net.tx_sec}
+		si.net.pings = []
+		for (let i = 0; i < 10; i++) si.net.pings.push(await sysinfo.inetLatency('10.0.0.3'))
 	} catch (e) {
-		si['error'] = e
+		si.error = e
 		log(`sysinfo() error: ${e}`)
 	}
 	res.send(si)

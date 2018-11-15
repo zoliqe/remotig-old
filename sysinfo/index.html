@@ -71,6 +71,7 @@ function fetchSysinfo() {
 				si.net.tx && (s += `total tx = ${(Number(si.net.tx) / mega).toFixed(2)} MB<br>`)
 				si.net.rx_sec && (s += `rx = ${(Number(si.net.rx_sec) / kilo).toFixed(2)} kBps<br>`)
 				si.net.tx_sec && (s += `tx = ${(Number(si.net.tx_sec) / kilo).toFixed(2)} kBps<br>`)
+				si.net.pings && (s += `ping 10.0.0.3 = ${si.net.pings} ms<br>`)
 			}
 			txtStatus.innerHTML += s
 		})
