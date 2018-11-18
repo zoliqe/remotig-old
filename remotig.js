@@ -355,11 +355,17 @@ function sendUart(cmd) {
 }
 
 function tcvrFreq(f) {
-	if (!f || f < 1500000 || f > 30000000) return //error(res, 'EVAL')
+	if (!f || f < 1500000 || f > 500000000) return //error(res, 'EVAL')
 
 	const hex2dec = (h) => {
 		const s = Math.floor(h / 10)
 		return s * 16 + (h - s * 10)
+	}
+
+	let mhz100 = 0
+	if (f >= 100000000) {
+		mhz100 = Math.floor(f / 100000000)
+		f = f - (mhz100 * 100000000)
 	}
 	// log(`f=${f}`)
 	const mhz10_1 = Math.floor(f / 1000000) // 10MHz, 1MHz
@@ -375,7 +381,7 @@ function tcvrFreq(f) {
 
 	const data = [0xFE, 0xFE,
 		tcvrCivAddr, myCivAddr, 0, // 0: transfer Freq CMD w/o reply .. 5: set Freq CMD with reply
-		hex2dec(hz10), hex2dec(hz1000_100), hex2dec(khz100_10), hex2dec(mhz10_1), 0, // freq always < 100MHz
+		hex2dec(hz10), hex2dec(hz1000_100), hex2dec(khz100_10), hex2dec(mhz10_1), mhz100,
 		0xFD]
 	// log(`TCVR f: ${data}`)
 	tcvr.write(data, (err) => err && log(`TCVR ${err.message}`))
