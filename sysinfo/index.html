@@ -36,7 +36,7 @@ function fetchTemps() {
 		.then((temps) => {
 			let s = 'temp:<br>'
 			temps.forEach(temp => s += `${temp.name} = ${temp.t} C<br>`)
-			s += `localtime = ${new Date().toUTCString()}<br>`
+			// s += `localtime = ${new Date().toUTCString()}<br>`
 			txtStatus.innerHTML = s
 			fetchSysinfo()
 		})
