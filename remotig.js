@@ -70,16 +70,23 @@ class Keyer {
 	}
 
 	send(msg) {
-		if (wpm < 1) return
-		if (this._lastKeyed + this._spaceMillis < Date.now()) {
+		if (this.wpm < 1) return
+		if (this._lastKeyed + this._spaceMillis*2 < Date.now()) {
 			this._uart('_') // on longer pause btw elements send buffering space
+			this._uart('_') // on longer pause btw elements send buffering space
+//			this._uart('_') // on longer pause btw elements send buffering space
+//			this._uart('_') // on longer pause btw elements send buffering space
+//			this._uart('_') // on longer pause btw elements send buffering space
+//			this._uart('_') // on longer pause btw elements send buffering space
+//			this._uart('_') // on longer pause btw elements send buffering space
+//			this._uart('_') // on longer pause btw elements send buffering space
 		}
 		this._uart(msg)
 		this._lastKeyed = Date.now()
 	}
 
 	get wpm() {
-		return _wpm
+		return this._wpm
 	}
 
 	set wpm(value) {
@@ -91,7 +98,7 @@ class Keyer {
 	}
 
 	get spaceMillis() {
-		return _spaceMillis
+		return this._spaceMillis
 	}
 
 }
