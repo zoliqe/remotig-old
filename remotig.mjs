@@ -2,14 +2,15 @@ log('Loading modules...')
 import express from 'express'
 import expressWss from 'express-ws'
 import WebSocket from 'ws'
-import SerialPort from 'serialport'
 import mic from 'mic'
 import {execSync} from 'child_process'
+import {Powron, PowronPins} from './powron'
 import {Keyer} from './keyer'
 import {tokens} from './auth'
+import {Transceiver} from './tcvr'
+import {ElecraftTcvr} from './tcvr_elecraft'
 
 const port = 8088
-// const tokens = require('./auth.js').tokens
 const authTimeout = 30 // sec
 const hwWatchdogTimeout = 120 // sec
 const heartbeat = 10 // sec
@@ -18,18 +19,9 @@ const sdrService = 'SDR'
 const serviceRelays = { }
 serviceRelays[sdrService] = ['0']
 serviceRelays[tcvrService] = ['0', '2']
-//const tcvrUrl = 'tcvr'
-const tcvrDev = '/dev/ttyUSB0'
-const tcvrBaudrate = 9600
-const tcvrCivAddr = 0x58 // IC-706MKIIG
-const myCivAddr = 224
-const uartDev = '/dev/ttyS0'
-//const uartDev = '/dev/ttyAMA0'
-const uartBaudrate = 115200
-const uartCmdByState = state => (state && 'H') || 'L'
-const uartStartSeq = '$OM4AA#'
-const uartKeyPttPin = 3
-const pttEnabled = true
+const powronDevice = '/dev/ttyS0'
+//const powronDevice = '/dev/ttyAMA0'
+const keyerPin = PowronPins.pin5
 const pttTimeout = 5 // sec
 const micOptions = {
 	device: 'plughw:1,0',
@@ -40,19 +32,11 @@ const micOptions = {
 	// exitOnSilence: 6
 }
 
-// const express = require('express')
-// const expressWss = require('express-ws')
-// const WebSocket = require('ws')
-// const SerialPort = require('serialport')
-// const mic = require('mic')
-// const execSync = require('child_process').execSync
-//var lame = require('lame')
+const powron = new Powron(powronDevice, keyerPin)
+const tcvrAdapter = ElecraftTcvr.K2(powron)
+const tcvr = new Transceiver(tcvrAdapter)
 
 const tokenParam = 'token'
-// const serviceParam = 'service'
-// const serviceURL = `/:${tokenParam}/:${serviceParam}/`
-// const freqParam = 'freq'
-
 const services = Object.keys(serviceRelays)
 const State = {on: 'active', starting: 'starting', off: null, stoping: 'stoping'}
 let serviceState = {}
@@ -101,7 +85,7 @@ app.ws(`/control/:${tokenParam}`, function (ws, req) {
 	ws.send('conack')
 	log('control open')
 	wsNow = ws
-	sendUart(uartCmdByState(false) + uartKeyPttPin) // ptt off
+	powron.pinState(keyerPin, false) // ptt off
 
 	ws.on('message', msg => {
 		if (ws !== wsNow && ws.readyState === WebSocket.OPEN) {
@@ -115,19 +99,17 @@ app.ws(`/control/:${tokenParam}`, function (ws, req) {
 
 		if (msg == 'poweron') {
 			startService(tcvrService)
-			//sendUart('H0')
 		} else if (msg == 'poweroff') {
 			stopService(tcvrService)
 			stopAudio() // not sure why, but must be called here, not in stopService()
-			//sendUart('L0')
 		} else if (['ptton', 'pttoff'].includes(msg)) {
 			const state = msg.endsWith('on')
-			if (!state || pttEnabled) { // ptt on only when enabled
-				sendUart(uartCmdByState(state) + uartKeyPttPin)
-				pttTime = state ? secondsNow() : undefined
+			if (!state || keyerPin) { // ptt on only when enabled
+				powron.pinState(keyerPin, state)
+				pttTime = state ? secondsNow() : null
 			}
 		} else if (msg == 'keyeron') {
-			keyer = new Keyer(sendUart, uartKeyPttPin)
+			keyer = new Keyer(powron)
 		} else if (msg == 'keyeroff') {
 			keyer = null
 		} else if (['.', '-', '_'].includes(msg)) {
@@ -135,15 +117,15 @@ app.ws(`/control/:${tokenParam}`, function (ws, req) {
 		} else if (msg.startsWith('wpm=')) {
 			keyer && (keyer.wpm = msg.substring(4))
 		} else if (msg.startsWith('f=')) {
-			tcvrFreq(Number(msg.substring(2)))
+			tcvr.frequency = msg.substring(2)
 		} else if (msg.startsWith('mode=')) {
-			tcvrMode(msg.substring(5).toUpperCase())
+			tcvr.mode = msg.substring(5)
 		} else if (['preampon', 'preampoff'].includes(msg)) {
-			tcvrPreamp(msg.endsWith('on'))
+			tcvr.gain = msg.endsWith('on') ? tcvr.preampLevels[0] : 0
 		} else if (['attnon', 'attnoff'].includes(msg)) {
-			tcvrAttn(msg.endsWith('on'))
+			tcvr.gain = msg.endsWith('on') ? (0 - tcvr.attnLevels[0]) : 0
 		} else if (['agcon', 'agcoff'].includes(msg)) {
-			tcvrAgc(msg.endsWith('on'))
+			tcvr.agc = tcvr.agcTypes[msg.endsWith('on') ? 0 : 1]
 		} else {
 			ws.send(`ecmd: '${msg}'`)
 		}
@@ -158,20 +140,10 @@ const server = app.listen(port, () => log(`Listening on ${port}`))
 log(`Activating heartbeat every ${heartbeat} s`)
 setInterval(tick, heartbeat * 1000)
 
-log(`Opening UART ${uartDev}`)
-const uart = new SerialPort(uartDev,
-	{ baudRate: uartBaudrate },
-	(err) => err && log(`UART ${err.message}`))
-uart.on('open', () => {
-	log(`UART opened: ${uartDev} ${uartBaudrate}`)
-	sendUart(uartStartSeq)
-})
-// uart.on('data', (data) => log(`UART => ${String(data).trim()}`))
-
-log(`Opening TCVR CAT ${tcvrDev}`)
-const tcvr = new SerialPort(tcvrDev, { baudRate: tcvrBaudrate },
-	(err) => err && log(`TCVR ${err.message}`))
-tcvr.on('open', () => log(`TCVR opened: ${tcvrDev} ${tcvrBaudrate}`))
+// log(`Opening TCVR CAT ${tcvrDev}`)
+// const tcvr = new SerialPort(tcvrDev, { baudRate: tcvrBaudrate },
+// 	(err) => err && log(`TCVR ${err.message}`))
+// tcvr.on('open', () => log(`TCVR opened: ${tcvrDev} ${tcvrBaudrate}`))
 // tcvr.on('data', (data) => log(`TCVR => ${data}`))
 
 function log(str) {
@@ -210,8 +182,8 @@ function checkPttTimeout() {
 	if (!pttTime) return
 	if (pttTime + pttTimeout > secondsNow()) return
 
-	sendUart(uartCmdByState(false) + uartKeyPttPin) // ptt off
-	pttTime = undefined
+	powron.pinState(keyerPin, false) // ptt off
+	pttTime = null
 }
 
 function checkAuthTimeout() {
@@ -274,7 +246,7 @@ async function startService(service) {
 
 	if (state === State.off) { // cold start
 		log(`startedService: ${service}`)
-		sendUart(`T${hwWatchdogTimeout}`)
+		powron.timeout = hwWatchdogTimeout
 	}
 
 	serviceState[service] = State.on
@@ -304,93 +276,11 @@ async function managePower(service, state) {
 
 	// let i = 0
 	// serviceRelays[service].forEach(relay => setTimeout(() => sendUart(cmd + relay), i++ * 5000))
-	serviceRelays[service].forEach(async (relay) => {
-		sendUart(uartCmdByState(state) + relay)
+	serviceRelays[service].forEach(async (pin) => {
+		powron.pinState(pin, state)
 		//await sleep(1000)
 	})
 	return true
-}
-
-//// UART + TCVR CAT
-function sendUart(cmd) {
-	// log(`UART <= ${cmd.trim()}`)
-	cmd.length > 1 && (cmd += '\n') // add NL delimiter for cmd with param
-	uart.write(cmd, (err) => err && log(`UART ${err.message}`))
-}
-
-function tcvrFreq(f) {
-	if (!f || f < 1500000 || f > 500000000) return //error(res, 'EVAL')
-
-	const hex2dec = (h) => {
-		const s = Math.floor(h / 10)
-		return s * 16 + (h - s * 10)
-	}
-
-	let mhz100 = 0
-	if (f >= 100000000) {
-		mhz100 = Math.floor(f / 100000000)
-		f = f - (mhz100 * 100000000)
-	}
-	// log(`f=${f}`)
-	const mhz10_1 = Math.floor(f / 1000000) // 10MHz, 1MHz
-	f = f - (mhz10_1 * 1000000)
-	// log(`f=${f}`)
-	const khz100_10 = Math.floor(f / 10000) // 100kHz, 10kHz
-	f = f - (khz100_10 * 10000)
-	// log(`f=${f}`)
-	const hz1000_100 = Math.floor(f / 100) // 1kHz, 100Hz
-	f = f - (hz1000_100 * 100)
-	// log(`f=${f}`)
-	const hz10 = Math.floor(f / 10) * 10 // 10Hz
-
-	const data = [0xFE, 0xFE,
-		tcvrCivAddr, myCivAddr, 0, // 0: transfer Freq CMD w/o reply .. 5: set Freq CMD with reply
-		hex2dec(hz10), hex2dec(hz1000_100), hex2dec(khz100_10), hex2dec(mhz10_1), mhz100,
-		0xFD]
-	// log(`TCVR f: ${data}`)
-	tcvr.write(data, (err) => err && log(`TCVR ${err.message}`))
-}
-
-const modeValues = {
-	LSB: 0x00, USB: 0x01, AM: 0x02, CW: 0x03, RTTY: 0x04, FM: 0x05, WFM: 0x06
-}
-
-function tcvrMode(mode) {
-	const value = modeValues[mode]
-	if (value === null) return
-
-	log(`tcvrMode: ${mode} => ${value}`)
-	const data = [0xFE, 0xFE,
-		tcvrCivAddr, myCivAddr, 0x06, value, 0x01,
-		0xFD]
-	tcvr.write(data, (err) => err && log(`TCVR ${err.message}`))
-}
-
-function tcvrAttn(state) {
-	log(`tcvrAttn: ${state}`)
-	const value = state ? 0x20 : 0
-	const data = [0xFE, 0xFE,
-		tcvrCivAddr, myCivAddr, 0x11, value,
-		0xFD]
-	tcvr.write(data, (err) => err && log(`TCVR ${err.message}`))
-}
-
-function tcvrPreamp(state) {
-	log(`tcvrPreamp: ${state}`)
-	const value = state ? 0x01 : 0
-	const data = [0xFE, 0xFE,
-		tcvrCivAddr, myCivAddr, 0x16, 0x02, value,
-		0xFD]
-	tcvr.write(data, (err) => err && log(`TCVR ${err.message}`))
-}
-
-function tcvrAgc(state) {
-	const value = state ? 0x01 : 0x02
-	log(`tcvrAgc: ${state}`)
-	const data = [0xFE, 0xFE,
-		tcvrCivAddr, myCivAddr, 0x16, 0x12, value,
-		0xFD]
-	tcvr.write(data, (err) => err && log(`TCVR ${err.message}`))
 }
 
 //// RX audio stream

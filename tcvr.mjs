@@ -1,5 +1,5 @@
 
-const startFrequency = 7_020_000
+const startFrequency = 7020000
 
 class Band {
 	constructor(name, id, minFreq, maxFreq) {
@@ -15,18 +15,18 @@ class Band {
 	}
 
 	static byFreq(freq) {
-		const freq = Number(freq)
+		const f = Number(freq)
 		return Object.values(_bands)
-			.find(band => band.freqFrom <= freq && band.freqTo >= freq)
+			.find(band => band.freqFrom <= f && band.freqTo >= f)
 	}
 }
 
 const _bands = {}
 const addBand = (name, id, minFreq, maxFreq) => _bands[id] = new Band(name, id, minFreq * 1000, maxFreq * 1000)
-addBand(1.8,	160,	1810,		2000)
-addBand(3.5,	80,		3500,		3800)
-addBand(5,		60,		5351,		5368)
-addBand(7,		40,		7000,		7200)
+addBand(1.8,	160,	1810,			2000)
+addBand(3.5,	80,		3500,			3800)
+addBand(5,		60,		5351,			5368)
+addBand(7,		40,		7000,			7200)
 addBand(10.1,	30,		10100,		10150)
 addBand(14,		20,		14000,		14350)
 addBand(18,		17,		18068,		18168)
@@ -59,6 +59,7 @@ addMode('USB')
 addMode('RTTY')
 addMode('NFM')
 addMode('WFM')
+addMode('AM')
 const modes = Object.freeze(_modes)
 
 const _agcTypes = {}
@@ -71,8 +72,8 @@ addAgc('NONE')
 const agcTypes = Object.freeze(_agcTypes)
 
 class Transceiver {
-	constructor(tcvrService) {
-		this._service = tcvrService
+	constructor(tcvrAdapter) {
+		this._adapter = tcvrAdapter
 
 		if (this._outOfBand(startFrequency)) {
 			this.frequency = this.bands[0].freqFrom + 20*1000
@@ -80,25 +81,25 @@ class Transceiver {
 			this.frequency = startFrequency
 		}
 		
-		this._mode = tcvrService.modes[0]
-		this._agc = tcvrService.agcTypes[0]
+		this._mode = tcvrAdapter.modes[0]
+		this._agc = tcvrAdapter.agcTypes[0]
 		this._gain = 0
 	}
 
 	get bands() {
-		return this._service.bands || [] //.map(Band.byId)
+		return this._adapter.bands || [] //.map(Band.byId)
 	}
 
 	get modes() {
-		return this._service.modes || []
+		return this._adapter.modes || []
 	}
 
 	get attnLevels() {
-		return this._service.attns || []
+		return this._adapter.attns || []
 	}
 
 	get preampLevels() {
-		return this._service.preamps || []
+		return this._adapter.preamps || []
 	}
 
 	get gainLevels() {
@@ -108,19 +109,19 @@ class Transceiver {
 	}
 
 	get agcTypes() {
-		return this._service.agcTypes
+		return this._adapter.agcTypes
 	}
 
 	set frequency(value) {
 		const freq = Number(value)
 		if (this._outOfBand(freq)) return
 
-		this._service.frequency = freq
+		this._adapter.frequency = freq
 		this._freq = freq
 	}
 
-	_outOfBand(freq) {
-		const band = Band.byFreq(freq)
+	_outOfBand(f) {
+		const band = Band.byFreq(f)
 		return !band || !this.bands.includes(band)
 	}
 
@@ -129,9 +130,10 @@ class Transceiver {
 	}
 
 	set mode(value) {
-		const mode = modes[value]
+		if (!value) return
+		const mode = modes[value.toUpperCase()]
 		if (mode && this.modes.includes(mode)) {
-			this._service.mode = mode
+			this._adapter.mode = mode
 			this._mode = mode
 		}
 	}
@@ -144,9 +146,9 @@ class Transceiver {
 		const gain = Number(value)
 		if (gain != null && this.gainLevels.contains(gain)) {
 			if (gain < 0) {
-				this._service.attn = 0 - gain
+				this._adapter.attn = 0 - gain
 			} else {
-				this._service.preamp = gain
+				this._adapter.preamp = gain
 			}
 			this._gain = gain
 		}
@@ -157,9 +159,10 @@ class Transceiver {
 	}
 
 	set agc(value) {
-		const agc = agcTypes[value]
+		if (!value) return
+		const agc = agcTypes[value.toUpperCase()]
 		if (agc && this.agcTypes.includes(agc)) {
-			this._service.agc = agc
+			this._adapter.agc = agc
 			this._agc = agc
 		}
 	}
