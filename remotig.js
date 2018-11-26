@@ -15,7 +15,8 @@ const tcvrDev = '/dev/ttyUSB0'
 const tcvrBaudrate = 9600
 const tcvrCivAddr = 0x58 // IC-706MKIIG
 const myCivAddr = 224
-const uartDev = '/dev/ttyAMA0'
+const uartDev = '/dev/ttyS0'
+//const uartDev = '/dev/ttyAMA0'
 const uartBaudrate = 115200
 const uartCmdByState = state => (state && 'H') || 'L'
 const uartStartSeq = '$OM4AA#'
