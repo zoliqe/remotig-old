@@ -11,4 +11,4 @@ log="remotig-`date \"+%Y%m%d\"`.log"
 rm remotig.log >/dev/null
 ln -s ${log} remotig.log
 
-nice --20 /root/node/bin/node --experimental-modules remotig.js >>${log} 2>&1 &
+nice --20 /root/node/bin/node --experimental-modules remotig.mjs >>${log} 2>&1 &

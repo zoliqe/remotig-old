@@ -1,7 +1,15 @@
-//import { * as express } from 'expres';
+log('Loading modules...')
+import express from 'express'
+import expressWss from 'express-ws'
+import WebSocket from 'ws'
+import SerialPort from 'serialport'
+import mic from 'mic'
+import {execSync} from 'child_process'
+import {Keyer} from './keyer'
+import {tokens} from './auth'
 
 const port = 8088
-const tokens = require('./auth.js').tokens
+// const tokens = require('./auth.js').tokens
 const authTimeout = 30 // sec
 const hwWatchdogTimeout = 120 // sec
 const heartbeat = 10 // sec
@@ -32,13 +40,12 @@ const micOptions = {
 	// exitOnSilence: 6
 }
 
-log('Loading modules...')
-const express = require('express')
-const expressWss = require('express-ws')
-const WebSocket = require('ws')
-const SerialPort = require('serialport')
-const mic = require('mic')
-const execSync = require('child_process').execSync
+// const express = require('express')
+// const expressWss = require('express-ws')
+// const WebSocket = require('ws')
+// const SerialPort = require('serialport')
+// const mic = require('mic')
+// const execSync = require('child_process').execSync
 //var lame = require('lame')
 
 const tokenParam = 'token'
@@ -59,50 +66,6 @@ const secondsNow = () => Date.now() / 1000
 let audio = undefined
 let wsNow = undefined
 let keyer = null
-
-class Keyer {
-
-	constructor(keyerSend, pin) {
-		this._lastKeyed = Date.now()
-		this._wpm = 0
-		this._spaceMillis = 0
-		this._uart = keyerSend
-		this._uart(`K${pin}`)
-	}
-
-	send(msg) {
-		if (this.wpm < 1) return
-		if (this._lastKeyed + this._spaceMillis*2 < Date.now()) {
-			this._uart('_') // on longer pause btw elements send buffering space
-			this._uart('_') // on longer pause btw elements send buffering space
-//			this._uart('_') // on longer pause btw elements send buffering space
-//			this._uart('_') // on longer pause btw elements send buffering space
-//			this._uart('_') // on longer pause btw elements send buffering space
-//			this._uart('_') // on longer pause btw elements send buffering space
-//			this._uart('_') // on longer pause btw elements send buffering space
-//			this._uart('_') // on longer pause btw elements send buffering space
-		}
-		this._uart(msg)
-		this._lastKeyed = Date.now()
-	}
-
-	get wpm() {
-		return this._wpm
-	}
-
-	set wpm(value) {
-		this._wpm = Number(value)
-		if (this._wpm < 1) return
-
-		this._spaceMillis = 3600 / this._wpm
-		this._uart('S' + this._wpm)
-	}
-
-	get spaceMillis() {
-		return this._spaceMillis
-	}
-
-}
 
 log('Starting express app')
 const appWs = expressWss(express()) //, null, {wsOptions: {clientTracking: true, verifyClient: (info, cb) => { log(`verifyClient.info=${JSON.stringify(info)}`); cb(true);}}})
