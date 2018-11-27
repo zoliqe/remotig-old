@@ -7,9 +7,9 @@ class Keyer {
 		this._lastKeyed = Date.now()
 		this._wpm = 0
 		this._spaceMillis = 0
-		this._send = powron.keyerCmd
-		this._speed = powron.keyerSpeed
-		// this._uart(`K${pin}`)
+		this._send = (s) => powron.keyerCmd(s)
+		this._speed = (v) => powron.keyerSpeed(v)
+		powron.keyerState(true)
 	}
 
 	send(msg) {

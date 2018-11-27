@@ -54,19 +54,19 @@ class ElecraftTcvr {
 	}
 
 	set mode(mode) {
-		this._uart('MD' + MD[mode])
+		this._uart(`MD${MD[mode]}`)
 	}
 
 	set agc(agc) {
-		this._uart('GT00' + agc == agcTypes.SLOW ? 4 : 2)
+		this._uart(`GT00${agc == agcTypes.SLOW ? 4 : 2}`)
 	}
 
 	set preamp(gain) {
-		this._uart('PA' + gain > 0 ? 1 : 0)
+		this._uart(`PA${gain > 0 ? 1 : 0}`)
 	}
 
 	set attn(attn) {
-		this._uart('RA0' + attn > 0 ? 1 : 0)
+		this._uart(`RA0${attn > 0 ? 1 : 0}`)
 	}
 }
 

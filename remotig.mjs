@@ -19,12 +19,13 @@ const sdrService = 'SDR'
 const serviceRelays = { }
 serviceRelays[sdrService] = ['0']
 serviceRelays[tcvrService] = ['0', '2']
-const powronDevice = '/dev/ttyS0'
+const powronDevice = '/dev/ttyUSB0'
+// const powronDevice = '/dev/ttyS0'
 //const powronDevice = '/dev/ttyAMA0'
 const keyerPin = PowronPins.pin5
 const pttTimeout = 5 // sec
 const micOptions = {
-	device: 'plughw:1,0',
+	device: 'plughw:0,0',
 	rate: '4000',
 	channels: '1',
 	fileType: 'wav',
@@ -33,8 +34,7 @@ const micOptions = {
 }
 
 const powron = new Powron(powronDevice, keyerPin)
-const tcvrAdapter = ElecraftTcvr.K2(powron)
-const tcvr = new Transceiver(tcvrAdapter)
+const tcvrAdapter = (powron) => ElecraftTcvr.K2(powron)
 
 const tokenParam = 'token'
 const services = Object.keys(serviceRelays)
@@ -49,6 +49,8 @@ let pttTime = undefined
 const secondsNow = () => Date.now() / 1000
 let audio = undefined
 let wsNow = undefined
+
+let tcvr = null
 let keyer = null
 
 log('Starting express app')
@@ -99,7 +101,9 @@ app.ws(`/control/:${tokenParam}`, function (ws, req) {
 
 		if (msg == 'poweron') {
 			startService(tcvrService)
+			tcvr = tcvr || new Transceiver(tcvrAdapter(powron))
 		} else if (msg == 'poweroff') {
+			tcvr = keyer = null
 			stopService(tcvrService)
 			stopAudio() // not sure why, but must be called here, not in stopService()
 		} else if (['ptton', 'pttoff'].includes(msg)) {
@@ -117,15 +121,15 @@ app.ws(`/control/:${tokenParam}`, function (ws, req) {
 		} else if (msg.startsWith('wpm=')) {
 			keyer && (keyer.wpm = msg.substring(4))
 		} else if (msg.startsWith('f=')) {
-			tcvr.frequency = msg.substring(2)
+			tcvr && (tcvr.frequency = msg.substring(2))
 		} else if (msg.startsWith('mode=')) {
-			tcvr.mode = msg.substring(5)
+			tcvr && (tcvr.mode = msg.substring(5))
 		} else if (['preampon', 'preampoff'].includes(msg)) {
-			tcvr.gain = msg.endsWith('on') ? tcvr.preampLevels[0] : 0
+			tcvr && (tcvr.gain = msg.endsWith('on') ? tcvr.preampLevels[0] : 0)
 		} else if (['attnon', 'attnoff'].includes(msg)) {
-			tcvr.gain = msg.endsWith('on') ? (0 - tcvr.attnLevels[0]) : 0
+			tcvr && (tcvr.gain = msg.endsWith('on') ? (0 - tcvr.attnLevels[0]) : 0)
 		} else if (['agcon', 'agcoff'].includes(msg)) {
-			tcvr.agc = tcvr.agcTypes[msg.endsWith('on') ? 0 : 1]
+			tcvr && (tcvr.agc = tcvr.agcTypes[msg.endsWith('on') ? 0 : 1])
 		} else {
 			ws.send(`ecmd: '${msg}'`)
 		}

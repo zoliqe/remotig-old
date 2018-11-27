@@ -106,6 +106,7 @@ class Transceiver {
 		const res = this.attnLevels.map(v => 0 - v)
 		res.push(0)
 		res.push(...this.preampLevels)
+		return res
 	}
 
 	get agcTypes() {
@@ -144,11 +145,14 @@ class Transceiver {
 
 	set gain(value) {
 		const gain = Number(value)
-		if (gain != null && this.gainLevels.contains(gain)) {
+		if (gain != null && this.gainLevels.includes(gain)) {
 			if (gain < 0) {
 				this._adapter.attn = 0 - gain
-			} else {
+			} else if (gain > 0) {
 				this._adapter.preamp = gain
+			} else {
+				this._adapter.attn = 0
+				this._adapter.preamp = 0
 			}
 			this._gain = gain
 		}

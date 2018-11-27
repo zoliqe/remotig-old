@@ -16,14 +16,11 @@ class Powron {
 			(err) => err && console.log(`UART ${err.message}`))
 		this._uart.on('open', () => {
 			console.log(`UART opened: ${device} ${baudRate}`)
-			this.send(startSeq)
-			
-			if (keyerPin && Object.values(PowronPins).contains(keyerPin)) {
-				this.send(`K${keyerPin}`)
-			}
+			this._uart.on('data', (data) => console.log(`UART => ${String(data).trim()}`))
+			setTimeout(() => this.send(startSeq), 3000)
 		})
-		// uart.on('data', (data) => log(`UART => ${String(data).trim()}`))
 		this._timeout = 600
+		this._keyerPin = keyerPin
 	}
 
 	get timeout() {
@@ -35,8 +32,18 @@ class Powron {
 		this.send(`T${this._timeout}`)
 	}
 
+	get keyerPin() {
+		return this._keyerPin
+	}
+
 	pinState(pin, state) {
 		this.send(cmdByState(state) + pin)
+	}
+
+	keyerState(state) {
+		if (this._keyerPin && Object.values(PowronPins).includes(this._keyerPin)) {
+			this.send(`K${state ? this._keyerPin : 0}`)
+		}
 	}
 
 	keyerCmd(cmd) {
@@ -52,12 +59,11 @@ class Powron {
 	}
 
 	serialCmd(cmd) {
-		for (let i = 0; i < cmd.length; i++) this._uart.write('>' + cmd.charAt(i))
-		this._uart.write('\n')
+		this.send('>' + cmd)
 	}
 
 	send(data) {
-		// log(`UART <= ${cmd.trim()}`)
+		console.log(`UART <= ${data.trim()}`)
 		data.length > 1 && (data += '\n') // add NL delimiter for cmd with param
 		this._uart.write(data, (err) => err && console.log(`UART ${err.message}`))
 	}

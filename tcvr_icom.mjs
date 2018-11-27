@@ -24,7 +24,7 @@ const hex2dec = (h) => {
 
 class IcomTcvr {
 	constructor(powron, address, baudrate) {
-		this._uart = powron.serialCmd
+		this._uart = (s) => powron.serialCmd(s)
 		this._tcvrAddr = address
 		this._baudrate = baudrate
 		powron.serial(baudrate)
