@@ -102,6 +102,7 @@ app.ws(`/control/:${tokenParam}`, function (ws, req) {
 		if (msg == 'poweron') {
 			startService(tcvrService)
 			tcvr = tcvr || new Transceiver(tcvrAdapter(powron))
+			keyer = keyer || new Keyer(powron)
 		} else if (msg == 'poweroff') {
 			tcvr = keyer = null
 			stopService(tcvrService)
@@ -113,9 +114,9 @@ app.ws(`/control/:${tokenParam}`, function (ws, req) {
 				pttTime = state ? secondsNow() : null
 			}
 		} else if (msg == 'keyeron') {
-			keyer = new Keyer(powron)
+			// keyer = new Keyer(powron)
 		} else if (msg == 'keyeroff') {
-			keyer = null
+			// keyer = null
 		} else if (['.', '-', '_'].includes(msg)) {
 			keyer && keyer.send(msg)
 		} else if (msg.startsWith('wpm=')) {
