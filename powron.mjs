@@ -1,6 +1,7 @@
 import SerialPort from 'serialport'
 
-const baudRate = 115200
+const baudRate = 4800 //115200
+const encoding = 'ascii'
 const cmdByState = state => (state && 'H') || 'L'
 const startSeq = '$OM4AA#'
 const PowronPins = Object.freeze({pin2: 0, pin3: 1, pin4: 2, pin5: 3, 
@@ -16,7 +17,7 @@ class Powron {
 			(err) => err && console.log(`UART ${err.message}`))
 		this._uart.on('open', () => {
 			console.log(`UART opened: ${device} ${baudRate}`)
-			this._uart.on('data', (data) => console.log(`UART => ${String(data).trim()}`))
+			// this._uart.on('data', (data) => console.log(`UART => ${String(data).trim()}`))
 			setTimeout(() => this.send(startSeq), 3000)
 		})
 		this._timeout = 600
@@ -55,17 +56,22 @@ class Powron {
 	}
 
 	serial(baudrate) {
-		this.send(`P${baudrate / 100}`)
+		this.send(`P${baudrate / 100}`,
+			// () => this._uart.update({ baudRate: baudRate })
+		)
 	}
 
 	serialCmd(cmd) {
 		this.send('>' + cmd)
 	}
 
-	send(data) {
-		console.log(`UART <= ${data.trim()}`)
+	send(data, callback) {
+		// console.log(`UART <= ${data.trim()}`)
 		data.length > 1 && (data += '\n') // add NL delimiter for cmd with param
-		this._uart.write(data, (err) => err && console.log(`UART ${err.message}`))
+		this._uart.write(data, encoding, (err) => {
+			if (err) console.log(`UART ${err.message}`)
+			else if (callback) callback()
+		})
 	}
 }
 
