@@ -25,7 +25,7 @@ const powronDevice = '/dev/ttyUSB0'
 const keyerPin = PowronPins.pin5
 const pttTimeout = 5 // sec
 const micOptions = {
-	device: 'plughw:0,0',
+	device: 'plug:dsnoop', //'plughw:0,0',
 	rate: '4000',
 	channels: '1',
 	fileType: 'wav',
@@ -75,6 +75,8 @@ register('/status', (req, res) => res.send({ who: whoNow, services: serviceState
 register(`/stream/:${tokenParam}`, audioStream)
 app.use('/smartceiver', express.static('smartceiver'))
 app.use('/', express.static('remotig'))
+app.use('/wav', express.static('awav'))
+app.use('/mp3', express.static('amp3'))
 app.ws(`/control/:${tokenParam}`, function (ws, req) {
 	log('control connect')
 	if (!req.authorized) {
