@@ -1,1 +1,103 @@
-class K2WebRTCConnector{static get id(){return'k2-webrtc'}static get name(){return'K2 remote via WebRTC'}static get capabilities(){return[Remoddle.id]}constructor(){this._options={localVideoEl:'localStream',remoteVideoEl:'remoteStream',autoRequestMedia:!0,enableDataChannels:!0,media:{video:!1,audio:!0},receiveMedia:{offerToReceiveAudio:1,offerToReceiveVideo:0},nick:'operator'}}connect(a,b){let c=new SimpleWebRTC(this._options);c.on('readyToCall',()=>c.joinRoom('k2-om4aa',(d,e)=>{if(d)console.log('connect err: '+d);else{console.log('connect succeed: '+e),c.mute(),c.pauseVideo();let d=new K2WebRTCPort(c);setTimeout(()=>{d.send('SEMICOL1;'),d.send('POWER1;'),setTimeout(()=>{d._startPowerOnTimer(1e4),this._bindCommands(a,d),b(d)},5e3)},3e3)}}))}_bindCommands(a,b){a.bind(EventType.keyDit,this.constructor.id,()=>b.send('.;')),a.bind(EventType.keyDah,this.constructor.id,()=>b.send('-;')),a.bind(EventType.mode,this.constructor.id,(a)=>b.send('MD'+(a.value+1)+';')),a.bind(EventType.freq,this.constructor.id,(a)=>{let c=a.value,d='FA';d+='000',1e7>c&&(d+='0'),d+=c,b.send(d+';')}),a.bind(EventType.wpm,this.constructor.id,(a)=>b.send('KS0'+a.value+';')),a.bind(EventType.filter,this.constructor.id,()=>{}),a.bind(EventType.preamp,this.constructor.id,(a)=>b.send('PA'+(a.value?'1':'0')+';')),a.bind(EventType.attn,this.constructor.id,(a)=>b.send('RA0'+(a.value?'1':'0')+';'))}}class K2WebRTCPort{constructor(a){this._webrtc=a}_startPowerOnTimer(a){this._timer=setInterval(()=>this.send('POWER1;'),a)}send(a){this._webrtc.sendDirectlyToAll('meta','ctl',{msg:a})}disconnect(){clearInterval(this._timer),this.send('POWEROFF;'),this._webrtc.disconnect()}}tcvrConnectors.register(new K2WebRTCConnector);
+
+class K2WebRTCConnector {
+  static get id() { return 'k2-webrtc'; }
+  static get name() { return 'K2 remote via WebRTC'; }
+  static get capabilities() { return [Remoddle.id]; }
+
+  constructor() {
+//     this._tcvr = tcvr;
+    this._options = {
+      localVideoEl: 'localStream',
+      remoteVideoEl: 'remoteStream',
+      autoRequestMedia: true,
+      enableDataChannels: true,
+      media: {video: false, audio: true},
+      receiveMedia: {offerToReceiveAudio: 1, offerToReceiveVideo: 0},
+      nick: 'operator'
+    };
+  }
+
+  connect(tcvr, successCallback) {
+    let webrtc = new SimpleWebRTC(this._options);
+//     let tcvr = this._tcvr;
+    webrtc.on('readyToCall', () => webrtc.joinRoom('k2-om4aa', (err, room) => { // TODO configurable room -> connectionId
+      if (err) {
+        console.log("connect err: " + err);
+      } else {
+        console.log("connect succeed: " + room);
+        webrtc.mute();
+        webrtc.pauseVideo();
+        let port = new K2WebRTCPort(webrtc);
+        setTimeout(() => {
+          port.send('SEMICOL1;');
+          port.send('POWER1;');
+          setTimeout(() => {
+            port._startPowerOnTimer(10000)
+            this._bindCommands(tcvr, port)
+            successCallback(port);
+          }, 5000); // delay for tcvr-init after poweron 
+        }, 3000); // delay for webrtc peer connection establish
+      }
+    }));
+  }
+
+  _bindCommands(tcvr, port) {
+    tcvr.bind(EventType.keyDit, this.constructor.id, event => port.send(".;"))
+    tcvr.bind(EventType.keyDah, this.constructor.id, event => port.send("-;"))
+    tcvr.bind(EventType.mode, this.constructor.id, event => port.send("MD" + (event.value + 1) + ";"))
+    tcvr.bind(EventType.freq, this.constructor.id, event => {
+      let freq = event.value
+      let data = "FA" // + _vfos[this._rxVfo]; // TODO split
+      data += "000"
+      if (freq < 10000000) { // <10MHz
+          data += "0"
+      }
+      data += freq
+      port.send(data + ";")
+    })
+    tcvr.bind(EventType.wpm, this.constructor.id, event => port.send("KS0" + event.value + ";"))
+    tcvr.bind(EventType.filter, this.constructor.id, event => {
+      // console.log('bandWidth=' + bandWidth)
+      // TODO this.player.setFilter(tcvr.sidetoneFreq, event.value)
+      // port.send((event.value < 1000 ? "FW0" : "FW") + event.value + ";")
+    })
+    tcvr.bind(EventType.preamp, this.constructor.id, event => port.send("PA" + (event.value ? "1" : "0") + ";"))
+    tcvr.bind(EventType.attn, this.constructor.id, event => port.send("RA0" + (event.value ? "1" : "0") + ";"))
+  }
+
+}
+
+class K2WebRTCPort {
+  constructor(webrtc) {
+    this._webrtc = webrtc;
+  }
+
+  _startPowerOnTimer(interval) {
+    this._timer = setInterval(() => this.send('POWER1;'), interval);
+  }
+
+  // set wpm(val) {
+  //   this.send("KS0" + val + ";");
+  // }
+
+  // _sendDit() {
+  //   this.send(".;");
+  // }
+
+  // _sendDah() {
+  //   this.send("-;");
+  // }
+
+  send(data) {
+    // https://stackoverflow.com/questions/37891029/usage-example-of-senddirectlytoall-of-simplewebrtc
+    this._webrtc.sendDirectlyToAll('meta', 'ctl', {msg: data});
+  }
+
+  disconnect() {
+    clearInterval(this._timer);
+    this.send('POWEROFF;');
+    this._webrtc.disconnect();
+  }
+}
+
+tcvrConnectors.register(new K2WebRTCConnector());

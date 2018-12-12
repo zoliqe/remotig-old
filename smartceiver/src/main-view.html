@@ -1,0 +1,269 @@
+<!--
+@license
+Copyright (c) 2016 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+--><!-- Ensure Web Animations polyfill is loaded since neon-animation 2.0 doesn't import it --><link rel="import" href="../bower_components/neon-animation/web-animations.html">
+<link rel="import" href="../bower_components/app-layout/app-grid/app-grid-style.html">
+<link rel="import" href="../bower_components/polymer/polymer-element.html">
+<link rel="import" href="../bower_components/paper-button/paper-button.html">
+<link rel="import" href="../bower_components/paper-dropdown-menu/paper-dropdown-menu.html">
+<link rel="import" href="../bower_components/paper-item/paper-item.html">
+<link rel="import" href="../bower_components/paper-listbox/paper-listbox.html">
+<link rel="import" href="shared-styles.html">
+
+<dom-module id="main-view">
+  <template>
+    <style include="shared-styles app-grid-style">
+      :host {
+        display: block;
+        padding: 0px;
+        --app-grid-columns: 2;
+        --app-grid-gutter: 2px;
+      }
+
+      @media (max-width: 680px) {
+        :host {
+          --app-grid-columns: 1;
+        }
+      }
+      ul {
+        list-style: none;
+      }
+
+      div.knob {
+        position: relative;
+        background-color: lightgray;/*#09f*/
+        background: radial-gradient(circle, darkgray, black);
+        /*margin: 20px auto;*/
+        margin-left: 55px;
+        width: 200px;
+        height: 200px;
+        border-radius: 100px;
+      }
+      div.dimp {
+        position: absolute;
+        background-color: gray;
+        background: radial-gradient(circle, #3d3d3d, #1e1e1e);
+        margin: 15px auto;
+        left: 50%;
+        width: 40px;
+        height: 40px;
+        border-radius: 20px;
+      }
+
+      paper-dropdown-menu.band {
+        width: 110px;
+      }
+      paper-dropdown-menu.mode {
+        width: 80px;
+        text-align: right;
+        padding-left: 135px;
+      }
+
+      paper-item.controls {
+        padding: 0;
+      }
+      paper-item.wpm {
+        padding: 0;
+        padding-left: 15px;
+      }
+      paper-button {
+        font-size: 14pt;
+        font-weight: bold;
+        color: white;
+        margin: 5px;
+
+      }
+      paper-button.toggles[active] {
+        background-color: var(--paper-green-500);
+      }
+      paper-button.toggles[active]:hover {
+        background-color: var(--paper-green-400);
+      }
+      paper-button.toggles {
+        background-color: var(--paper-red-800);
+      }
+      paper-button.toggles:hover {
+        background-color: var(--paper-red-700);
+      }
+      paper-button.wpm {
+        background-color: var(--paper-indigo-800);
+        --paper-button-raised-keyboard-focus: {
+          background-color: var(--paper-pink-a200) !important;
+          color: white !important;
+        };
+      }
+      paper-button.wpm[disabled] {
+        background-color: lightgray;
+      }
+      paper-button.wpm:hover {
+        background-color: var(--paper-indigo-600);
+      }
+
+      .wpm-control {
+        padding: 10px;
+        font-size: 28pt;
+        font-weight: bold;
+      }
+    </style>
+
+    <ul class="app-grid">
+    <li><div class="card">
+      <paper-dropdown-menu label="BAND" class="band">
+        <paper-listbox slot="dropdown-content" selected="{{band}}">
+          <template is="dom-repeat" items="[[bands]]">
+            <paper-item>{{item}} MHz</paper-item>
+          </template>
+        </paper-listbox>
+      </paper-dropdown-menu>
+      <paper-dropdown-menu label="MODE" class="mode">
+          <paper-listbox slot="dropdown-content" selected="{{mode}}">
+            <template is="dom-repeat" items="[[modes]]">
+              <paper-item>{{item}}</paper-item>
+            </template>
+          </paper-listbox>
+        </paper-dropdown-menu>
+        <div id="knob" class="knob" on-wheel="rotateByWheel">
+        <div id="dimp" class="dimp"></div>
+      </div>
+    </div></li>
+    <li><div class="card" role="listbox">
+      <h1>Controls</h1>
+      <paper-item class="controls">
+        <paper-button toggles="" active="{{locked}}" raised="" class="toggles">LOCK</paper-button>
+        <paper-button toggles="" active="{{fast}}" raised="" class="toggles">FAST</paper-button>
+        <paper-button toggles="" active="{{narrow}}" raised="" class="toggles">NAR</paper-button>
+      </paper-item>
+      <paper-item class="controls">
+        <paper-button toggles="" active="{{preamp}}" raised="" class="toggles" disabled="[[!power]]">PREAMP</paper-button>
+        <paper-button toggles="" active="{{attn}}" raised="" class="toggles" disabled="[[!power]]">ATTN</paper-button>
+        <!-- <paper-button toggles active="{{ptt}}" raised class="toggles">PTT</paper-button> -->
+        <paper-button toggles="" active="{{agc}}" raised="" class="toggles" disabled="[[!power]]">AGC</paper-button>
+      </paper-item>
+      <paper-item class="wpm">
+        <paper-button raised="" on-tap="decreaseWpm" class="wpm" disabled="[[decWpmDisabled(wpm)]]">WPM --</paper-button>
+        <span class="wpm-control">[[wpm]]</span>
+        <paper-button raised="" on-tap="increaseWpm" class="wpm" disabled="[[incWpmDisabled(wpm)]]">WPM ++</paper-button>
+      </paper-item>
+      <p></p>
+    </div></li>
+    </ul>
+  </template>
+
+  <script>
+    class MainView extends Polymer.Element {
+      
+      static get is() { return 'main-view'; }
+
+      static get properties() {
+        return {
+          freq: {type: Number, notify: true},
+          locked: {type: Boolean, value: false},
+          fast: {type: Boolean, value: false},
+          narrow: {type: Boolean, notify: true},
+          wpm: {type: Number, notify: true},
+          preamp: {type: Boolean, notify: true},
+          attn: {type: Boolean, notify: true},
+          bands: {type: Array, notify: false},
+          band: {type: Number, notify: true},
+          modes: {type: Array, notify: false},
+          mode: {type: Number, notify: true},
+          ptt: {type: Boolean, notify: true, value: false},
+          agc: {type: Boolean, notify: true, value: true},
+          power: {type: Boolean, notify: false},
+        }
+      }
+
+      constructor() {
+        super();
+        this.startAngle = 0;
+        this.lastAngle = 0;
+        this.lastRotation = 0;
+        this.wheelY = 0;
+
+        this.threshold = 5;
+        this.wheelThreshold = 5;
+      }
+
+      ready() {
+        super.ready();
+
+        this.$.knob.addEventListener("touchstart", (event) => {
+          this.centerX = this.$.knob.offsetLeft + (this.$.knob.offsetWidth / 2);
+          this.centerY = this.$.knob.offsetTop + (this.$.knob.offsetHeight / 2);
+          // console.log('startX=' + this.centerX + ', startY=' + this.centerY);
+
+          var touch = event.changedTouches.item(0);
+          this.startAngle = Math.atan2(touch.pageY - this.centerY, touch.pageX - this.centerX) * 180 / Math.PI;
+          // console.log("startAngle=" + this.startAngle);
+        });
+        this.$.knob.addEventListener("touchmove", e => {this.rotateByTouch(e)});
+        this.$.knob.addEventListener("touchend", e => {this.rotateByTouch(e)});
+      }
+
+      rotateByTouch(event) {
+        var touch = event.changedTouches.item(0);
+        event.preventDefault();// Turn off default event handling
+
+        var currentAngle = Math.atan2(touch.pageY - this.centerY, touch.pageX - this.centerX) * 180 / Math.PI;
+        var rotation = this.lastAngle + (currentAngle - this.startAngle);
+        if (Math.abs(rotation - this.lastRotation) > this.threshold) {
+          this.rotateKnob(rotation);
+        }
+
+        if (event.type == "touchend") {
+          this.lastAngle = rotation;
+        }
+        return rotation;
+      }
+
+      rotateByWheel(event) {
+        this.wheelY += event.deltaY;
+        event.preventDefault();// Turn off default event handling
+        if (Math.abs(this.wheelY) < this.wheelThreshold) {
+          return;
+        }
+        // console.log('deltaY ' + event.deltaY);
+        var rotation = this.wheelY < 0 ? this.lastRotation + this.threshold + 1 : this.lastRotation - this.threshold - 1;
+        this.rotateKnob(rotation);
+        this.wheelY = 0;
+        this.lastAngle = rotation;
+      }
+
+      rotateKnob(rotation) {
+        var delta = rotation - this.lastRotation;
+        this.lastRotation = rotation;
+        var transform = "rotate(" + rotation + "deg)";
+        // console.log(transform);
+        this.$.knob.style.transform = transform;
+
+        if (this.locked) {
+          return;
+        }
+        var step = this.fast ? 200 : 20;
+        this.freq = delta > 0 ? (this.freq + step) : (this.freq - step);
+      }
+
+      decreaseWpm() {
+        this.wpm = this.wpm - 2;
+      }
+      decWpmDisabled(wpm) {
+        return wpm <= 10;
+      }
+
+      increaseWpm() {
+        this.wpm = this.wpm + 2;
+      }
+      incWpmDisabled(wpm) {
+        return wpm >= 40;
+      }
+
+    }
+
+    window.customElements.define(MainView.is, MainView);
+  </script>
+</dom-module>

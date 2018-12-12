@@ -2,8 +2,8 @@ log('Loading modules...')
 import express from 'express'
 import expressWss from 'express-ws'
 import WebSocket from 'ws'
-import mic from 'mic'
-import {execSync} from 'child_process'
+// import mic from 'mic'
+// import {execSync} from 'child_process'
 import {Powron, PowronPins} from './powron'
 import {Keyer} from './keyer'
 import {tokens} from './auth'
@@ -14,36 +14,34 @@ const port = 8088
 const authTimeout = 30 // sec
 const hwWatchdogTimeout = 120 // sec
 const heartbeat = 10 // sec
-const tcvrService = 'TCVR'
-const sdrService = 'SDR'
-const serviceRelays = { }
-serviceRelays[sdrService] = ['0']
-serviceRelays[tcvrService] = ['0', '2']
+const tcvrDevice = 'TCVR'
+const powronPins = { }
+powronPins[tcvrDevice] = [PowronPins.pin2, PowronPins.pin4]
 const powronDevice = '/dev/ttyUSB0'
 // const powronDevice = '/dev/ttyS0'
 //const powronDevice = '/dev/ttyAMA0'
 const keyerPin = PowronPins.pin5
 const pttTimeout = 5 // sec
-const micOptions = {
-	device: 'plug:dsnoop', //'plughw:0,0',
-	rate: '4000',
-	channels: '1',
-	fileType: 'wav',
-	debug: true,
-	// exitOnSilence: 6
-}
+// const micOptions = {
+// 	device: 'plug:dsnoop', //'plughw:0,0',
+// 	rate: '4000',
+// 	channels: '1',
+// 	fileType: 'wav',
+// 	debug: true,
+// 	// exitOnSilence: 6
+// }
 
 const powron = new Powron(powronDevice, keyerPin)
 const tcvrAdapter = (powron) => ElecraftTcvr.K2(powron)
 
 const tokenParam = 'token'
-const services = Object.keys(serviceRelays)
+const devices = Object.keys(powronPins)
 const State = {on: 'active', starting: 'starting', off: null, stoping: 'stoping'}
-let serviceState = {}
-services.forEach(service => serviceState[service] = State.off)
+let deviceState = {}
+devices.forEach(dev => deviceState[dev] = State.off)
 
 let whoNow = undefined
-//let activeServices = []
+//let activeDevs = []
 let authTime = undefined // sec
 let pttTime = undefined
 const secondsNow = () => Date.now() / 1000
@@ -64,19 +62,19 @@ app.param(tokenParam, (req, res, next, value) => {
 	next()
 })
 
-log('Registering REST services')
+log('Registering devices')
 //register(serviceURL + 'start', (req, res) => executeAction(req, res, true))
 //register(serviceURL + 'stop', (req, res) => executeAction(req, res, false))
 //register(`/${tcvrUrl}/freq/:${freqParam}`, (req, res) => {
 //	tcvrFreq(req.params[freqParam] && Number(req.params[freqParam]).toFixed(0))
 //	res.end()
 //})
-register('/status', (req, res) => res.send({ who: whoNow, services: serviceState, authTime: authTime }))
-register(`/stream/:${tokenParam}`, audioStream)
+app.get('/status', (req, res) => res.send({ who: whoNow, devices: deviceState, authTime: authTime }))
+// register(`/stream/:${tokenParam}`, audioStream)
 app.use('/smartceiver', express.static('smartceiver'))
 app.use('/', express.static('remotig'))
-app.use('/wav', express.static('awav'))
-app.use('/mp3', express.static('amp3'))
+// app.use('/wav', express.static('awav'))
+// app.use('/mp3', express.static('amp3'))
 app.ws(`/control/:${tokenParam}`, function (ws, req) {
 	log('control connect')
 	if (!req.authorized) {
@@ -102,23 +100,19 @@ app.ws(`/control/:${tokenParam}`, function (ws, req) {
 		// log('cmd: ' + msg)
 
 		if (msg == 'poweron') {
-			startService(tcvrService)
+			powerOn(tcvrDevice)
 			tcvr = tcvr || new Transceiver(tcvrAdapter(powron))
 			keyer = keyer || new Keyer(powron)
 		} else if (msg == 'poweroff') {
 			tcvr = keyer = null
-			stopService(tcvrService)
-			stopAudio() // not sure why, but must be called here, not in stopService()
+			powerOff(tcvrDevice)
+			// stopAudio() // not sure why, but must be called here, not in powerOff()
 		} else if (['ptton', 'pttoff'].includes(msg)) {
 			const state = msg.endsWith('on')
 			if (!state || keyerPin) { // ptt on only when enabled
 				powron.pinState(keyerPin, state)
 				pttTime = state ? secondsNow() : null
 			}
-		} else if (msg == 'keyeron') {
-			// keyer = new Keyer(powron)
-		} else if (msg == 'keyeroff') {
-			// keyer = null
 		} else if (['.', '-', '_'].includes(msg)) {
 			keyer && keyer.send(msg)
 		} else if (msg.startsWith('wpm=')) {
@@ -157,10 +151,10 @@ function log(str) {
 	console.log(new Date().toISOString() + ' ' + str)
 }
 
-function register(url, callback) {
-	log(`URL: ${url}`)
-	app.get(url, callback)
-}
+// function register(url, callback) {
+// 	log(`URL: ${url}`)
+// 	app.get(url, callback)
+// }
 
 //// Access Management
 function authorize(token) {
@@ -197,13 +191,13 @@ function checkAuthTimeout() {
 	if (!whoNow) return
 	if (!authTime || (authTime + authTimeout) > secondsNow()) return
 
-	const startedServices = services.filter(service => serviceState[service] === State.on)
+	const startedServices = devices.filter(service => deviceState[service] === State.on)
 	if (startedServices.length == 0) {
 		logout()
 		return
 	}
 	log(`auth timeout for ${whoNow}: ${startedServices}`)
-	startedServices.forEach(stopService)
+	startedServices.forEach(powerOff)
 }
 
 function disconnectOtherThan(currentWs) {
@@ -241,35 +235,35 @@ function error(res, err, status = 400) {
 	return result
 }*/
 
-async function startService(service) {
-	const state = serviceState[service]
+async function powerOn(device) {
+	const state = deviceState[device]
 	if (state === State.stoping || state === State.starting) {
-		log(`Service ${service} in progress state ${state}, ignoring start`)
+		log(`Device ${device} in progress state ${state}, ignoring start`)
 		return
 	}
 
-	serviceState[service] = State.starting
-	if ( ! managePower(service, true)) return
+	deviceState[device] = State.starting
+	if (!managePower(device, true)) return
 
 	if (state === State.off) { // cold start
-		log(`startedService: ${service}`)
+		log(`powerOn: ${device}`)
 		powron.timeout = hwWatchdogTimeout
 	}
 
-	serviceState[service] = State.on
+	deviceState[device] = State.on
 }
 
-async function stopService(service) {
-	serviceState[service] = State.stoping
-	log(`stopService: ${service}`)
-	managePower(service, false)
+async function powerOff(device) {
+	deviceState[device] = State.stoping
+	log(`powerOff: ${device}`)
+	managePower(device, false)
 	await sleep(1000)
-	managePower(service, false)
+	managePower(device, false)
 	await sleep(2000)
 
-	serviceState[service] = State.off
-	const activeServices = services.filter(service => serviceState[service] !== State.off)
-	activeServices.length == 0 && logout()
+	deviceState[device] = State.off
+	const activeDevs = devices.filter(dev => deviceState[dev] !== State.off)
+	activeDevs.length == 0 && logout()
 }
 
 function logout() {
@@ -277,68 +271,49 @@ function logout() {
 	log('logout')
 }
 
-async function managePower(service, state) {
-	if (!service || !services.includes(service)) return false
-	// if (serviceNow && serviceNow !== service) return false
-
-	// let i = 0
-	// serviceRelays[service].forEach(relay => setTimeout(() => sendUart(cmd + relay), i++ * 5000))
-	serviceRelays[service].forEach(async (pin) => {
-		powron.pinState(pin, state)
-		//await sleep(1000)
-	})
-	return true
-}
-
-//// RX audio stream
-async function audioStream(req, res) {
-	log('Starting audio stream')
-	if (!req.authorized) {
-		log('auth failed, streaming ignored')
-		error(res, 'EAUTH', 401)
-		return
-	}
-	res.set({ 'Content-Type': 'audio/wav', 'Transfer-Encoding': 'chunked' })
-	stopAudio() //&& await sleep(1000) // stop previously on audio
-	try { execSync('killall arecord') } catch (e) { /*ignore*/ }
-    // stopAudio(() => {
-    //   setTimeout(() => {
-    //     startAudio(stream => stream.pipe(res))
-    //   }, 3000)
-    // })
-	startAudio(stream => stream.pipe(res))
-  //    encoder.pipe(res);
-}
-
-async function startAudio(cb) {
-	log('start audio')
-	//await sleep(1000)
-	audio = mic(micOptions)
-
-	// audioStream = audio.getAudioStream();
-	audio.getAudioStream().on('startComplete', () => {
-		// console.log('startComplete');
-		cb(audio.getAudioStream())
-	})
-
-	audio.start()
-}
-
-function stopAudio(cb) {
-	if (!audio) return false
-	log('stop audio');
-	audio.stop()
-	// audio.getAudioStream().on('stopComplete', () => {
-	// audioStream = undefined;
-	audio = undefined
-	// cb()
-	// })
+async function managePower(device, state) {
+	if (!device || !devices.includes(device)) return false
+	powronPins[device].forEach(async (pin) => powron.pinState(pin, state))
 	return true
 }
 
 function sleep(ms) {
 	return new Promise(resolve => setTimeout(resolve, ms));
 }
+
+//// RX audio stream
+// async function audioStream(req, res) {
+// 	log('Starting audio stream')
+// 	if (!req.authorized) {
+// 		log('auth failed, streaming ignored')
+// 		error(res, 'EAUTH', 401)
+// 		return
+// 	}
+// 	res.set({ 'Content-Type': 'audio/wav', 'Transfer-Encoding': 'chunked' })
+// 	stopAudio() //&& await sleep(1000) // stop previously on audio
+// 	try { execSync('killall arecord') } catch (e) { /*ignore*/ }
+// 	startAudio(stream => stream.pipe(res))
+// }
+
+// async function startAudio(cb) {
+// 	log('start audio')
+// 	audio = mic(micOptions)
+
+// 	audio.getAudioStream().on('startComplete', () => {
+// 		// console.log('startComplete');
+// 		cb(audio.getAudioStream())
+// 	})
+
+// 	audio.start()
+// }
+
+// function stopAudio(cb) {
+// 	if (!audio) return false
+// 	log('stop audio');
+// 	audio.stop()
+// 	audio = undefined
+// 	return true
+// }
 
 //input.pipe(encoder);
 
