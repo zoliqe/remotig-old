@@ -5,5 +5,5 @@ tmux new-session -d -s remotig-audio "ffmpeg -y -f alsa -i plug:dsnoop -rtbufsiz
 -acodec libmp3lame -ab 8k -out_sample_rate 8k -ac 1 -reservoir 0 -f mp3 \
 -af 'lowpass=f=800, highpass=f=300, bandpass=f=600' \
 -fflags +nobuffer - \
-| node stdinstreamer.js -port 9601 -type mp3 -burstsize 1"
+| node stdinstreamer.js -port 8073 -type mp3 -burstsize 1"
 
