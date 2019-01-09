@@ -2,13 +2,14 @@ log('Loading modules...')
 import express from 'express'
 import expressWss from 'express-ws'
 import WebSocket from 'ws'
-// import mic from 'mic'
-// import {execSync} from 'child_process'
+import {secondsNow, log, whoIn, delay, error} from './utils'
 import {Powron, PowronPins} from './powron'
+import {CwPttUart} from './uart'
 import {Keyer} from './keyer'
 import {tokens} from './auth'
 import {Transceiver} from './tcvr'
-import {ElecraftTcvr} from './tcvr_elecraft'
+import {ElecraftTcvr} from './tcvr-elecraft'
+// import {IcomTcvr} from './tcvr-icom'
 
 const port = 8088
 const authTimeout = 30 // sec
@@ -17,39 +18,37 @@ const heartbeat = 10 // sec
 const tcvrDevice = 'TCVR'
 const powronPins = { }
 powronPins[tcvrDevice] = [PowronPins.pin2, PowronPins.pin4]
-const powronDevice = '/dev/ttyUSB0'
-// const powronDevice = '/dev/ttyS0'
-//const powronDevice = '/dev/ttyAMA0'
-const keyerPin = PowronPins.pin5
-const pttTimeout = 5 // sec
-// const micOptions = {
-// 	device: 'plug:dsnoop', //'plughw:0,0',
-// 	rate: '4000',
-// 	channels: '1',
-// 	fileType: 'wav',
-// 	debug: true,
-// 	// exitOnSilence: 6
-// }
 
-const powron = new Powron(powronDevice, keyerPin)
-const tcvrAdapter = (powron) => ElecraftTcvr.K2(powron)
+const powronOptions = {
+	device: '/dev/ttyUSB0', //'/dev/ttyS0','/dev/ttyAMA0','COM14'
+	keyerPin: PowronPins.pin5,
+	// pttPin: PowronPins.pin6,
+}
+const powron = new Powron(powronOptions)
 
+const tcvrCatAdapter = powron
+const tcvrAdapter = () => ElecraftTcvr.K2(tcvrCatAdapter) // deffer serial initialization
+
+const keyerOptions = {
+	cwAdapter: powron,
+	pttAdapter: new CwPttUart({device: '/dev/ttyUSB1', pttPin: 'dtr'}), //powron,
+	bufferSize: 2, // letter spaces (delay before start sending dit/dah to keyer)
+	pttTimeout: 5000, // milliseconds
+	pttTail: 500, // millis
+}
+
+////////////////////////////////////////
 const tokenParam = 'token'
 const devices = Object.keys(powronPins)
 const State = {on: 'active', starting: 'starting', off: null, stoping: 'stoping'}
-let deviceState = {}
+const deviceState = {}
 devices.forEach(dev => deviceState[dev] = State.off)
 
-let whoNow = undefined
-//let activeDevs = []
-let authTime = undefined // sec
-let pttTime = undefined
-const secondsNow = () => Date.now() / 1000
-let audio = undefined
-let wsNow = undefined
-
-let tcvr = null
-let keyer = null
+let whoNow
+let authTime
+let wsNow
+let tcvr
+let keyer
 
 log('Starting express app')
 const appWs = expressWss(express()) //, null, {wsOptions: {clientTracking: true, verifyClient: (info, cb) => { log(`verifyClient.info=${JSON.stringify(info)}`); cb(true);}}})
@@ -62,19 +61,9 @@ app.param(tokenParam, (req, res, next, value) => {
 	next()
 })
 
-log('Registering devices')
-//register(serviceURL + 'start', (req, res) => executeAction(req, res, true))
-//register(serviceURL + 'stop', (req, res) => executeAction(req, res, false))
-//register(`/${tcvrUrl}/freq/:${freqParam}`, (req, res) => {
-//	tcvrFreq(req.params[freqParam] && Number(req.params[freqParam]).toFixed(0))
-//	res.end()
-//})
+log('Registering services')
 app.get('/status', (req, res) => res.send({ who: whoNow, devices: deviceState, authTime: authTime }))
-// register(`/stream/:${tokenParam}`, audioStream)
-app.use('/smartceiver', express.static('smartceiver'))
-app.use('/', express.static('remotig'))
-// app.use('/wav', express.static('awav'))
-// app.use('/mp3', express.static('amp3'))
+
 app.ws(`/control/:${tokenParam}`, function (ws, req) {
 	log('control connect')
 	if (!req.authorized) {
@@ -87,7 +76,6 @@ app.ws(`/control/:${tokenParam}`, function (ws, req) {
 	ws.send('conack')
 	log('control open')
 	wsNow = ws
-	powron.pinState(keyerPin, false) // ptt off
 
 	ws.on('message', msg => {
 		if (ws !== wsNow && ws.readyState === WebSocket.OPEN) {
@@ -101,18 +89,19 @@ app.ws(`/control/:${tokenParam}`, function (ws, req) {
 
 		if (msg == 'poweron') {
 			powerOn(tcvrDevice)
-			tcvr = tcvr || new Transceiver(tcvrAdapter(powron))
-			keyer = keyer || new Keyer(powron)
+			tcvr = tcvr || new Transceiver(tcvrAdapter())
+			keyer = keyer || new Keyer(keyerOptions)
 		} else if (msg == 'poweroff') {
 			tcvr = keyer = null
 			powerOff(tcvrDevice)
 			// stopAudio() // not sure why, but must be called here, not in powerOff()
 		} else if (['ptton', 'pttoff'].includes(msg)) {
 			const state = msg.endsWith('on')
-			if (!state || keyerPin) { // ptt on only when enabled
-				powron.pinState(keyerPin, state)
-				pttTime = state ? secondsNow() : null
-			}
+			keyer && keyer.ptt(state)
+			// if (!state || keyerPin) { // ptt on only when enabled
+			// 	powron.pinState(keyerPin, state)
+			// 	pttTime = state ? secondsNow() : null
+			// }
 		} else if (['.', '-', '_'].includes(msg)) {
 			keyer && keyer.send(msg)
 		} else if (msg.startsWith('wpm=')) {
@@ -147,10 +136,6 @@ setInterval(tick, heartbeat * 1000)
 // tcvr.on('open', () => log(`TCVR opened: ${tcvrDev} ${tcvrBaudrate}`))
 // tcvr.on('data', (data) => log(`TCVR => ${data}`))
 
-function log(str) {
-	console.log(new Date().toISOString() + ' ' + str)
-}
-
 // function register(url, callback) {
 // 	log(`URL: ${url}`)
 // 	app.get(url, callback)
@@ -168,23 +153,9 @@ function authorize(token) {
 	return true
 }
 
-function whoIn(token) {
-	if (!token) return null
-	const delPos = token.indexOf('-')
-	return delPos > 3 ? token.substring(0, delPos).toUpperCase() : null
-}
-
 function tick() {
-	checkPttTimeout();
+	// checkPttTimeout();
 	checkAuthTimeout();
-}
-
-function checkPttTimeout() {
-	if (!pttTime) return
-	if (pttTime + pttTimeout > secondsNow()) return
-
-	powron.pinState(keyerPin, false) // ptt off
-	pttTime = null
 }
 
 function checkAuthTimeout() {
@@ -210,12 +181,6 @@ function disconnectOtherThan(currentWs) {
 //				client.close()
 			}
 		}) // disconnect others
-}
-
-function error(res, err, status = 400) {
-	res.locals.result = err
-	res.status(status).send(err)
-	return false
 }
 
 /*function executeAction(req, res, state) {
@@ -257,9 +222,9 @@ async function powerOff(device) {
 	deviceState[device] = State.stoping
 	log(`powerOff: ${device}`)
 	managePower(device, false)
-	await sleep(1000)
+	await delay(1000)
 	managePower(device, false)
-	await sleep(2000)
+	await delay(2000)
 
 	deviceState[device] = State.off
 	const activeDevs = devices.filter(dev => deviceState[dev] !== State.off)
@@ -276,105 +241,3 @@ async function managePower(device, state) {
 	powronPins[device].forEach(async (pin) => powron.pinState(pin, state))
 	return true
 }
-
-function sleep(ms) {
-	return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-//// RX audio stream
-// async function audioStream(req, res) {
-// 	log('Starting audio stream')
-// 	if (!req.authorized) {
-// 		log('auth failed, streaming ignored')
-// 		error(res, 'EAUTH', 401)
-// 		return
-// 	}
-// 	res.set({ 'Content-Type': 'audio/wav', 'Transfer-Encoding': 'chunked' })
-// 	stopAudio() //&& await sleep(1000) // stop previously on audio
-// 	try { execSync('killall arecord') } catch (e) { /*ignore*/ }
-// 	startAudio(stream => stream.pipe(res))
-// }
-
-// async function startAudio(cb) {
-// 	log('start audio')
-// 	audio = mic(micOptions)
-
-// 	audio.getAudioStream().on('startComplete', () => {
-// 		// console.log('startComplete');
-// 		cb(audio.getAudioStream())
-// 	})
-
-// 	audio.start()
-// }
-
-// function stopAudio(cb) {
-// 	if (!audio) return false
-// 	log('stop audio');
-// 	audio.stop()
-// 	audio = undefined
-// 	return true
-// }
-
-//input.pipe(encoder);
-
-// create the Encoder instance
-/*var encoder = new lame.Encoder({
-// input
-channels: 2,        // 2 channels (left and right)
-bitDepth: 16,       // 16-bit samples
-sampleRate: 44100,  // 44,100 Hz sample rate
-
-// output
-bitRate: options.bitrate,
-outSampleRate: options.samplerate,
-mode: (options.mono ? lame.MONO : lame.STEREO) // STEREO (default), JOINTSTEREO, DUALCHANNEL or MONO
-});*/
-
-
-/*var outputFileStream = fs.WriteStream('output.raw');
-
-audioStream.pipe(outputFileStream);
-
-audioStream.on('data', function(data) {
-    console.log("Recieved Input Stream: " + data.length);
-});
-
-audioStream.on('error', function(err) {
-    console.log("Error in Input Stream: " + err);
-});
-
-audioStream.on('startComplete', function() {
-    console.log("Got SIGNAL startComplete");
-    setTimeout(function() {
-            audio.pause();
-    }, 5000);
-});
-
-audioStream.on('stopComplete', function() {
-    console.log("Got SIGNAL stopComplete");
-});
-
-audioStream.on('pauseComplete', function() {
-    console.log("Got SIGNAL pauseComplete");
-    setTimeout(function() {
-        audio.resume();
-    }, 5000);
-});
-
-audioStream.on('resumeComplete', function() {
-    console.log("Got SIGNAL resumeComplete");
-    setTimeout(function() {
-        audio.stop();
-    }, 5000);
-});
-
-audioStream.on('silence', function() {
-    console.log("Got SIGNAL silence");
-});
-
-audioStream.on('processExitComplete', function() {
-    console.log("Got SIGNAL processExitComplete");
-});*/
-
-//  audio.start();
-

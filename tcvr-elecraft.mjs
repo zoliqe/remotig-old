@@ -13,14 +13,14 @@ MD[modes.USB] = 2
 MD[modes.RTTY] = 6
 
 class ElecraftTcvr {
-	constructor(powron, baudrate) {
-		this._uart = (data) => powron.serialCmd(data + ';')
+	constructor(adapter, baudrate) {
+		this._uart = (data) => adapter.serialData(data + ';')
 		this._baudrate = baudrate
-		powron.serial(baudrate)
+		adapter.serial(baudrate)
 	}
 
-	static K2(powron) {
-		return new ElecraftTcvr(powron, 4800)
+	static K2(adapter) {
+		return new ElecraftTcvr(adapter, 4800)
 	}
 
 	get baudrate() {

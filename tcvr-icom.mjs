@@ -23,15 +23,15 @@ const hex2dec = (h) => {
 }
 
 class IcomTcvr {
-	constructor(powron, address, baudrate) {
-		this._uart = (s) => powron.serialCmd(s)
+	constructor(adapter, address, baudrate) {
+		this._uart = (s) => adapter.serialData(s)
 		this._tcvrAddr = address
 		this._baudrate = baudrate
-		powron.serial(baudrate)
+		adapter.serial(baudrate)
 	}
 
-	static IC706(powron) {
-		return new IcomTcvr(powron, 0x58, 9600)
+	static IC706(adapter) {
+		return new IcomTcvr(adapter, 0x58, 9600)
 	}
 
 	get civAddress() {

@@ -11,7 +11,7 @@ const PowronPins = Object.freeze({pin2: 0, pin3: 1, pin4: 2, pin5: 3,
 })
 
 class Powron {
-	constructor(device, keyerPin) {
+	constructor({device, keyerPin, pttPin}) {
 		// log(`Opening UART ${uartDev}`)
 		this._uart = new SerialPort(device, { baudRate: baudRate },
 			(err) => err && console.log(`UART ${err.message}`))
@@ -22,6 +22,7 @@ class Powron {
 		})
 		this._timeout = 600
 		this._keyerPin = keyerPin
+		this._pttPin = pttPin
 	}
 
 	get timeout() {
@@ -43,16 +44,21 @@ class Powron {
 
 	keyerState(state) {
 		if (this._keyerPin && Object.values(PowronPins).includes(this._keyerPin)) {
+			this.pinState(this._keyerPin, false)
 			this.send(`K${state ? this._keyerPin : 0}`)
 		}
 	}
 
-	keyerCmd(cmd) {
+	keyerCW(cmd) {
 		this.send(cmd)
 	}
 
 	keyerSpeed(wpm) {
 		this.send('S' + wpm)
+	}
+
+	pttState(state) {
+		this._pttPin && this.pinState(this._pttPin, state)
 	}
 
 	serial(baudrate) {
@@ -61,8 +67,8 @@ class Powron {
 		)
 	}
 
-	serialCmd(cmd) {
-		this.send('>' + cmd)
+	serialData(data) {
+		this.send('>' + data)
 	}
 
 	send(data, callback) {
