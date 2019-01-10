@@ -4,12 +4,13 @@ import expressWss from 'express-ws'
 import WebSocket from 'ws'
 import {secondsNow, log, whoIn, delay, error} from './utils'
 import {Powron, PowronPins} from './powron'
-import {CwPttUart} from './uart'
+import {CwPttUart, CatUart} from './uart'
 import {Keyer} from './keyer'
 import {tokens} from './auth'
 import {Transceiver} from './tcvr'
 import {ElecraftTcvr} from './tcvr-elecraft'
-// import {IcomTcvr} from './tcvr-icom'
+import {IcomTcvr} from './tcvr-icom'
+import {YeasuTcvr} from './tcvr-yeasu'
 
 const port = 8088
 const authTimeout = 30 // sec
@@ -19,15 +20,18 @@ const tcvrDevice = 'TCVR'
 const powronPins = { }
 powronPins[tcvrDevice] = [PowronPins.pin2, PowronPins.pin4]
 
-const powronOptions = {
+const powron = new Powron({
 	device: '/dev/ttyUSB0', //'/dev/ttyS0','/dev/ttyAMA0','COM14'
 	keyerPin: PowronPins.pin5,
 	// pttPin: PowronPins.pin6,
-}
-const powron = new Powron(powronOptions)
+})
 
-const tcvrCatAdapter = powron
-const tcvrAdapter = () => ElecraftTcvr.K2(tcvrCatAdapter) // deffer serial initialization
+const tcvrOptions = {
+	catAdapter: powron, 
+	// catAdapter: new CatUart({device: '/dev/ttyUSB2', baudrate: 4800}), // uart must be opened before tcvrAdapter construction 
+	baudrate: 4800,
+}
+const tcvrAdapter = () => ElecraftTcvr.K2(tcvrOptions) // deffer serial initialization
 
 const keyerOptions = {
 	cwAdapter: powron,
@@ -129,12 +133,6 @@ const server = app.listen(port, () => log(`Listening on ${port}`))
 
 log(`Activating heartbeat every ${heartbeat} s`)
 setInterval(tick, heartbeat * 1000)
-
-// log(`Opening TCVR CAT ${tcvrDev}`)
-// const tcvr = new SerialPort(tcvrDev, { baudRate: tcvrBaudrate },
-// 	(err) => err && log(`TCVR ${err.message}`))
-// tcvr.on('open', () => log(`TCVR opened: ${tcvrDev} ${tcvrBaudrate}`))
-// tcvr.on('data', (data) => log(`TCVR => ${data}`))
 
 // function register(url, callback) {
 // 	log(`URL: ${url}`)

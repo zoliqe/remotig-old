@@ -57,6 +57,7 @@ addMode('CWR')
 addMode('LSB')
 addMode('USB')
 addMode('RTTY')
+addMode('RTTYR')
 addMode('NFM')
 addMode('WFM')
 addMode('AM')
@@ -81,9 +82,9 @@ class Transceiver {
 			this.frequency = startFrequency
 		}
 		
-		this._mode = tcvrAdapter.modes[0]
-		this._agc = tcvrAdapter.agcTypes[0]
-		this._gain = 0
+		this.mode = this.modes[0]
+		if (this.agcTypes.length > 0) this.agc = this.agcTypes[0]
+		this.gain = 0
 	}
 
 	get bands() {
@@ -91,7 +92,7 @@ class Transceiver {
 	}
 
 	get modes() {
-		return this._adapter.modes || []
+		return this._adapter.modes || [modes.LSB]
 	}
 
 	get attnLevels() {
@@ -110,12 +111,12 @@ class Transceiver {
 	}
 
 	get agcTypes() {
-		return this._adapter.agcTypes
+		return this._adapter.agcTypes || []
 	}
 
 	set frequency(value) {
 		const freq = Number(value)
-		if (this._outOfBand(freq)) return
+		if (this._outOfBand(freq) || freq == this._freq) return
 
 		this._adapter.frequency = freq
 		this._freq = freq
@@ -133,7 +134,7 @@ class Transceiver {
 	set mode(value) {
 		if (!value) return
 		const mode = modes[value.toUpperCase()]
-		if (mode && this.modes.includes(mode)) {
+		if (mode && mode != this._mode && this.modes.includes(mode)) {
 			this._adapter.mode = mode
 			this._mode = mode
 		}
@@ -145,7 +146,7 @@ class Transceiver {
 
 	set gain(value) {
 		const gain = Number(value)
-		if (gain != null && this.gainLevels.includes(gain)) {
+		if (gain != null && gain != this._gain && this.gainLevels.includes(gain)) {
 			if (gain < 0) {
 				this._adapter.attn = 0 - gain
 			} else if (gain > 0) {
@@ -165,7 +166,7 @@ class Transceiver {
 	set agc(value) {
 		if (!value) return
 		const agc = agcTypes[value.toUpperCase()]
-		if (agc && this.agcTypes.includes(agc)) {
+		if (agc && agc != this._agc && this.agcTypes.includes(agc)) {
 			this._adapter.agc = agc
 			this._agc = agc
 		}

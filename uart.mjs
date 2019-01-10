@@ -2,6 +2,7 @@ import SerialPort from 'serialport'
 
 const baudRate = 4800 //115200
 const allowedPins = ['dtr', 'rts']
+const encoding = 'ascii'
 
 class CwPttUart {
 	constructor({device, keyerPin, pttPin}) {
@@ -39,4 +40,23 @@ class CwPttUart {
 
 }
 
-export {CwPttUart}
+class CatUart {
+	constructor({device, baudRate}) {
+		// log(`Opening TCVR CAT ${tcvrDev}`)
+		this._uart = new SerialPort(device, { baudRate: baudRate },
+			(err) => err && log(`CAT UART ${err.message}`))
+		this._uart.on('open', () => log(`CAT UART opened: ${device} ${baudRate}`))
+		// tcvr.on('data', (data) => log(`CAT => ${data}`))
+	}
+
+	serial(baudRate) {}
+
+	serialData(data, callback) {
+		this._uart && this._uart.write(data, encoding, (err) => {
+			if (err) console.log(`CAT UART ${err.message}`)
+			else if (callback) callback()
+		})
+	}
+}
+
+export {CwPttUart, CatUart}
