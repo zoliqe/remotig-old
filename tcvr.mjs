@@ -85,6 +85,7 @@ class Transceiver {
 		this.mode = this.modes[0]
 		if (this.agcTypes.length > 0) this.agc = this.agcTypes[0]
 		this.gain = 0
+		if (this.filters.length > 0) this.filter = this.filters[0]
 	}
 
 	get bands() {
@@ -93,6 +94,10 @@ class Transceiver {
 
 	get modes() {
 		return this._adapter.modes || [modes.LSB]
+	}
+
+	get filters() {
+		return this._adapter.filters(this._mode) || []
 	}
 
 	get attnLevels() {
@@ -174,6 +179,17 @@ class Transceiver {
 
 	get agc() {
 		return this._agc
+	}
+
+	set filter(value) {
+		if (this.filters.includes(value) && value != this._filter) {
+			this._adapter.filter(value, this._mode)
+			this._filter = value
+		}
+	}
+
+	get filter() {
+		return this._filter
 	}
 }
 

@@ -62,6 +62,10 @@ class IcomTcvr {
 		return [10]
 	}
 
+	filters(mode) {
+		return null
+	}
+
 	set frequency(f) {
 		let mhz100 = 0
 		if (f >= 100000000) {
@@ -124,6 +128,10 @@ class IcomTcvr {
 			this._tcvrAddr, myCivAddr, 0x11, value,
 			0xFD]
 		this._uart(data)
+	}
+
+	filter(filter, mode) {
+		// not supported
 	}
 }
 

@@ -12,6 +12,10 @@ MD[modes.LSB] = 1
 MD[modes.USB] = 2
 MD[modes.RTTY] = 6
 
+const filters = {}
+filters[modes.CW] = filters[modes.CWR] = ['1k5', '700', '400', '200']
+filters[modes.LSB] = filters[modes.USB] = filters[modes.RTTY] = ['1k5', 'OP1', '400', '200']
+
 class ElecraftTcvr {
 	constructor({catAdapter, baudrate, cwFilterCount, ssbFilterCount}) {
 		this._uart = (data) => catAdapter.serialData(data + ';')
@@ -47,6 +51,10 @@ class ElecraftTcvr {
 		return [10]
 	}
 
+	filters(mode) {
+		return filters[mode]
+	}
+
 	set frequency(freq) {
 		let cmd = 'FA000'
 		if (freq < 10000000) cmd += '0'
@@ -67,6 +75,12 @@ class ElecraftTcvr {
 
 	set attn(attn) {
 		this._uart(`RA0${attn > 0 ? 1 : 0}`)
+	}
+
+	filter(filter, mode) {
+		const count = Object.keys(filters[mode]).length / 2
+		const index = filters[mode].indexOf(filter)
+		for (let i = 0; i < count; i++) this._uart(`FW0000${index}`) // cycle trought filters (basic cmd format)
 	}
 }
 

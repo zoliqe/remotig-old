@@ -14,6 +14,13 @@ modeValues[modes.NFM] = 0x06
 modeValues[modes.WFM] = 0x07
 modeValues[modes.RTTY] = 0x08
 modeValues[modes.RTTYR] = 0x09
+const filterValues = {
+	'6k0': 88,
+	'2k4': 80,
+	'2k0': 82,
+	'500': 84,
+	'250': 86,
+}
 
 const hex2dec = (h) => {
 	const s = Math.floor(h / 10)
@@ -55,6 +62,10 @@ class YeasuTcvr {
 		return null
 	}
 
+	filters(mode) {
+		return Object.keys(filterValues)
+	}
+
 	set frequency(f) {
 		let mhz100_10 = 0
 		if (f >=                     10000000) { // 10MHz
@@ -80,10 +91,13 @@ class YeasuTcvr {
 
 	set mode(mode) {
 		const value = modeValues[mode]
-		if (value == null) return
-	
-		// log(`tcvrMode: ${mode} => ${value}`)
 		const data = [0, 0, 0, value, 0x0C]
+		this._uart(data)
+	}
+
+	filter(filter, mode) {
+		const value = filterValues[filter]
+		const data = [0, 0, 0, value, 0x8C]
 		this._uart(data)
 	}
 
