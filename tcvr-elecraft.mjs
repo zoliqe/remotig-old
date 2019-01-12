@@ -78,9 +78,12 @@ class ElecraftTcvr {
 	}
 
 	filter(filter, mode) {
-		const count = Object.keys(filters[mode]).length / 2
+		// const count = Object.keys(filters[mode]).length / 2
 		const index = filters[mode].indexOf(filter)
-		for (let i = 0; i < count; i++) this._uart(`FW0000${index}`) // cycle trought filters (basic cmd format)
+		this._uart('K22')
+		this._uart(`FW0000${index}`)
+		this._uart('K20')
+		// for (let i = 0; i < count; i++) this._uart(`FW0000${index}`) // cycle trought filters (basic cmd format)
 	}
 }
 
