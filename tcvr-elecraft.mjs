@@ -13,14 +13,16 @@ MD[modes.USB] = 2
 MD[modes.RTTY] = 6
 
 const filters = {}
-filters[modes.CW] = filters[modes.CWR] = ['1k5', '700', '400', '200']
-filters[modes.LSB] = filters[modes.USB] = filters[modes.RTTY] = ['1k5', 'OP1', '400', '200']
+filters[modes.CW] = filters[modes.CWR] = ['2k4', '2k0', '500', '250']
+// filters[modes.CW] = filters[modes.CWR] = ['1k5', '700', '400', '200']
+filters[modes.LSB] = filters[modes.USB] = ['2k4', '2k0', '500', '250']
+// filters[modes.LSB] = filters[modes.USB] = filters[modes.RTTY] = ['1k5', 'OP1', '400', '200']
 
 class ElecraftTcvr {
-	constructor({catAdapter, baudrate, cwFilterCount, ssbFilterCount}) {
-		this._uart = (data) => catAdapter.serialData(data + ';')
-		this._baudrate = baudrate
-		catAdapter.serial(baudrate)
+	constructor(options = {catAdapter, baudrate, cwFilterCount, ssbFilterCount}) {
+		this._uart = (data) => options.catAdapter.serialData(data + ';')
+		this._baudrate = options.baudrate
+		options.catAdapter.serial(this._baudrate)
 	}
 
 	static K2(options = {catAdapter, baudrate = 4800, cwFilterCount = 4, ssbFilterCount = 4}) {

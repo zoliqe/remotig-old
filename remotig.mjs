@@ -114,6 +114,8 @@ app.ws(`/control/:${tokenParam}`, function (ws, req) {
 			tcvr && (tcvr.frequency = msg.substring(2))
 		} else if (msg.startsWith('mode=')) {
 			tcvr && (tcvr.mode = msg.substring(5))
+		} else if (msg.startsWith('filter=')) {
+			tcvr && (tcvr.filter = msg.substring(7))
 		} else if (['preampon', 'preampoff'].includes(msg)) {
 			tcvr && (tcvr.gain = msg.endsWith('on') ? tcvr.preampLevels[0] : 0)
 		} else if (['attnon', 'attnoff'].includes(msg)) {

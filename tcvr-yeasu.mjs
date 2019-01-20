@@ -7,8 +7,8 @@ const _modes = [modes.CW, modes.CWR, modes.LSB, modes.USB]
 const modeValues = {}
 modeValues[modes.LSB] = 0x00
 modeValues[modes.USB] = 0x01
-modeValues[modes.CW]  = 0x02
-modeValues[modes.CWR] = 0x03
+modeValues[modes.CW]  = 0x03
+modeValues[modes.CWR] = 0x02
 modeValues[modes.AM]  = 0x04
 modeValues[modes.NFM] = 0x06
 modeValues[modes.WFM] = 0x07
@@ -28,10 +28,10 @@ const hex2dec = (h) => {
 }
 
 class YeasuTcvr {
-	constructor({catAdapter, baudrate}) {
-		this._uart = (s) => catAdapter.serialData(s)
-		this._baudrate = baudrate
-		catAdapter.serial(baudrate)
+	constructor(options = {catAdapter, baudrate}) {
+		this._uart = (s) => options.catAdapter.serialData(s)
+		this._baudrate = options.baudrate
+		options.catAdapter.serial(this._baudrate)
 	}
 
 	static FT1000MP(options = {catAdapter, baudrate = 9600}) {

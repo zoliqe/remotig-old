@@ -1,19 +1,22 @@
 import SerialPort from 'serialport'
+import {log} from './utils'
 
 const baudRate = 4800 //115200
 const allowedPins = ['dtr', 'rts']
 const encoding = 'ascii'
 
 class CwPttUart {
-	constructor({device, keyerPin, pttPin}) {
-		this._keyerPin = keyerPin && allowedPins.includes(keyerPin) ? keyerPin : null
-		this._pttPin = pttPin && allowedPins.includes(pttPin) ? pttPin : null
+	constructor(options = {device, keyerPin, pttPin}) {
+		this._keyerPin = options.keyerPin && allowedPins.includes(options.keyerPin) 
+			? options.keyerPin : null
+		this._pttPin = options.pttPin && allowedPins.includes(options.pttPin)
+			? options.pttPin : null
 
 		// log(`Opening CW/PTT UART ${uartDev}`)
-		this._uart = new SerialPort(device, { baudRate: baudRate },
+		this._uart = new SerialPort(options.device, { baudRate: baudRate },
 			(err) => err && console.log(`CW/PTT UART ${err.message}`))
 		this._uart.on('open', () => {
-			console.log(`CW/PTT UART opened: ${device} ${baudRate}`)
+			console.log(`CW/PTT UART opened: ${options.device} ${baudRate}`)
 			// this._uart.on('data', (data) => console.log(`UART => ${String(data).trim()}`))
 			this.pttState(false)
 		})
@@ -41,11 +44,11 @@ class CwPttUart {
 }
 
 class CatUart {
-	constructor({device, baudRate}) {
+	constructor(options = {device, baudRate}) {
 		// log(`Opening TCVR CAT ${tcvrDev}`)
-		this._uart = new SerialPort(device, { baudRate: baudRate },
+		this._uart = new SerialPort(options.device, { baudRate: options.baudRate },
 			(err) => err && log(`CAT UART ${err.message}`))
-		this._uart.on('open', () => log(`CAT UART opened: ${device} ${baudRate}`))
+		this._uart.on('open', () => log(`CAT UART opened: ${options.device} ${options.baudRate}`))
 		// tcvr.on('data', (data) => log(`CAT => ${data}`))
 	}
 
