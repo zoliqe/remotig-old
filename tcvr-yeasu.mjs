@@ -15,9 +15,9 @@ modeValues[modes.WFM] = 0x07
 modeValues[modes.RTTY] = 0x08
 modeValues[modes.RTTYR] = 0x09
 const filterValues = {
-	'6k0': 88,
-	'2k4': 80,
-	'2k0': 82,
+	'6000': 88,
+	'2400': 80,
+	'2000': 82,
 	'500': 84,
 	'250': 86,
 }
