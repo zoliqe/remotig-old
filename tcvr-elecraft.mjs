@@ -25,7 +25,7 @@ class ElecraftTcvr {
 		options.catAdapter.serial(this._baudrate)
 	}
 
-	static K2(options = {catAdapter, baudrate = 4800, cwFilterCount = 4, ssbFilterCount = 4}) {
+	static K2(options = {catAdapter, baudrate = 4800, cwFilterCount = 4, ssbFilterCount = 4}) { //baudrate = 4800, cwFilterCount = 4, ssbFilterCount = 4
 		return new ElecraftTcvr(options)
 	}
 

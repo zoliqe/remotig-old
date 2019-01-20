@@ -34,7 +34,7 @@ class YeasuTcvr {
 		options.catAdapter.serial(this._baudrate)
 	}
 
-	static FT1000MP(options = {catAdapter, baudrate = 9600}) {
+	static FT1000MP(options = {catAdapter, baudrate}) { // baudrate = 4800
 		return new YeasuTcvr(options)
 	}
 

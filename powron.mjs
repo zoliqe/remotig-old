@@ -14,9 +14,9 @@ class Powron {
 	constructor({device, keyerPin, pttPin}) {
 		// log(`Opening UART ${uartDev}`)
 		this._uart = new SerialPort(device, { baudRate: baudRate },
-			(err) => err && console.log(`UART ${err.message}`))
+			(err) => err && console.log(`POWRON ${err.message}`))
 		this._uart.on('open', () => {
-			console.log(`UART opened: ${device} ${baudRate}`)
+			console.log(`POWRON opened: ${device} ${baudRate}`)
 			// this._uart.on('data', (data) => console.log(`UART => ${String(data).trim()}`))
 			setTimeout(() => this.send(startSeq), 3000)
 		})
@@ -72,10 +72,10 @@ class Powron {
 	}
 
 	send(data, callback) {
-		// console.log(`UART <= ${data.trim()}`)
+		// console.log(`POWRON <= ${data.trim()}`)
 		data.length > 1 && (data += '\n') // add NL delimiter for cmd with param
 		this._uart.write(data, encoding, (err) => {
-			if (err) console.log(`UART ${err.message}`)
+			if (err) console.log(`POWRON ${err.message}`)
 			else if (callback) callback()
 		})
 	}
