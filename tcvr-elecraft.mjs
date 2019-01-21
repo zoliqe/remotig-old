@@ -19,18 +19,12 @@ filters[modes.LSB] = filters[modes.USB] = ['2400', '2000', '500', '250']
 // filters[modes.LSB] = filters[modes.USB] = filters[modes.RTTY] = ['1k5', 'OP1', '400', '200']
 
 class ElecraftTcvr {
-	constructor(options = {catAdapter, baudrate, cwFilterCount, ssbFilterCount}) {
-		this._uart = (data) => options.catAdapter.serialData(data + ';')
-		this._baudrate = options.baudrate
-		options.catAdapter.serial(this._baudrate)
+	constructor(adapter, options = {cwFilterCount, ssbFilterCount}) {
+		this._uart = data => adapter.serialData(data + ';')
 	}
 
-	static K2(options = {catAdapter, baudrate, cwFilterCount, ssbFilterCount}) { //baudrate = 4800, cwFilterCount = 4, ssbFilterCount = 4
-		return new ElecraftTcvr(options)
-	}
-
-	get baudrate() {
-		return this._baudrate
+	static K2(adapter, options = {cwFilterCount, ssbFilterCount}) { //baudrate = 4800, cwFilterCount = 4, ssbFilterCount = 4
+		return new ElecraftTcvr(adapter, options)
 	}
 
 	get agcTypes() {

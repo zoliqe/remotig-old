@@ -23,23 +23,17 @@ const hex2dec = (h) => {
 }
 
 class IcomTcvr {
-	constructor(adapter, address, baudrate) {
+	constructor(adapter, address) {
 		this._uart = (s) => adapter.serialData(s)
 		this._tcvrAddr = address
-		this._baudrate = baudrate
-		adapter.serial(baudrate)
 	}
 
-	static IC706(adapter) {
-		return new IcomTcvr(adapter, 0x58, 9600)
+	static IC706(adapter) { // baudrate = 9600
+		return new IcomTcvr(adapter, 0x58)
 	}
 
 	get civAddress() {
 		return this._tcvrAddr
-	}
-
-	get baudrate() {
-		return this._baudrate
 	}
 
 	get agcTypes() {

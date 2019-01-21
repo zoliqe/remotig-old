@@ -28,18 +28,12 @@ const hex2dec = (h) => {
 }
 
 class YeasuTcvr {
-	constructor(options = {catAdapter, baudrate}) {
-		this._uart = (s) => options.catAdapter.serialData(s)
-		this._baudrate = options.baudrate
-		options.catAdapter.serial(this._baudrate)
+	constructor(adapter) {
+		this._uart = s => adapter.serialData(s)
 	}
 
-	static FT1000MP(options = {catAdapter, baudrate}) { // baudrate = 4800
-		return new YeasuTcvr(options)
-	}
-
-	get baudrate() {
-		return this._baudrate
+	static FT1000MP(adapter) { // baudrate = 4800
+		return new YeasuTcvr(adapter)
 	}
 
 	get agcTypes() {

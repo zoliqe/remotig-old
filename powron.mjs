@@ -11,14 +11,17 @@ const PowronPins = Object.freeze({pin2: 0, pin3: 1, pin4: 2, pin5: 3,
 })
 
 class Powron {
-	constructor(options = {device, keyerPin, pttPin}) {
+	constructor(options = {device, keyerPin, pttPin, serialBaudRate}) {
 		// log(`Opening POWRON ${uartDev}`)
 		this._uart = new SerialPort(options.device, { baudRate: baudRate },
 			(err) => err && console.log(`POWRON ${err.message}`))
 		this._uart.on('open', () => {
-			console.log(`POWRON opened: ${options.device} ${baudRate}`)
+			console.log(`POWRON opened: ${options.device} ${baudRate}; keyer=${keyerPin} ptt=${pttPin} serial=${serialBaudRate}`)
 			// this._uart.on('data', (data) => console.log(`POWRON => ${String(data).trim()}`))
-			setTimeout(() => this.send(startSeq), 3000)
+			setTimeout(() => {
+				this.send(startSeq)
+				serialBaudRate && this.serial(serialBaudRate)
+			}, 3000)
 		})
 		this._timeout = 600
 		this._keyerPin = options.keyerPin
@@ -62,9 +65,7 @@ class Powron {
 	}
 
 	serial(baudrate) {
-		this.send(`P${baudrate / 100}`,
-			// () => this._uart.update({ baudRate: baudRate })
-		)
+		this.send(`P${baudrate / 100}`)
 	}
 
 	serialData(data) {

@@ -44,11 +44,11 @@ class CwPttUart {
 }
 
 class CatUart {
-	constructor(options = {device, baudRate}) {
+	constructor(device, baudRate) {
 		// log(`Opening TCVR CAT ${tcvrDev}`)
-		this._uart = new SerialPort(options.device, { baudRate: options.baudRate },
+		this._uart = new SerialPort(device, { baudRate: baudRate },
 			(err) => err && log(`CAT UART ${err.message}`))
-		this._uart.on('open', () => log(`CAT UART opened: ${options.device} ${options.baudRate}`))
+		this._uart.on('open', () => log(`CAT UART opened: ${device} ${baudRate}`))
 		// tcvr.on('data', (data) => log(`CAT => ${data}`))
 	}
 

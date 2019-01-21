@@ -3,43 +3,13 @@ import express from 'express'
 import expressWss from 'express-ws'
 import WebSocket from 'ws'
 import {secondsNow, log, whoIn, delay, error} from './utils'
-import {Powron, PowronPins} from './powron'
-import {CwPttUart, CatUart} from './uart'
+import {Transceiver} from './tcvr'
 import {Keyer} from './keyer'
 import {tokens} from './auth'
-import {Transceiver} from './tcvr'
-import {ElecraftTcvr} from './tcvr-elecraft'
-import {IcomTcvr} from './tcvr-icom'
-import {YeasuTcvr} from './tcvr-yeasu'
-
-const port = 8088
-const authTimeout = 30 // sec
-const hwWatchdogTimeout = 120 // sec
-const heartbeat = 10 // sec
-const tcvrDevice = 'TCVR'
-const powronPins = { }
-powronPins[tcvrDevice] = [PowronPins.pin2, PowronPins.pin4]
-
-const powron = new Powron({
-	device: '/dev/ttyUSB0', //'/dev/ttyS0','/dev/ttyAMA0','COM14'
-	keyerPin: PowronPins.pin5,
-	// pttPin: PowronPins.pin6,
-})
-
-const tcvrOptions = {
-	catAdapter: powron, 
-	// catAdapter: new CatUart({device: '/dev/ttyUSB2', baudrate: 4800}), // uart must be opened before tcvrAdapter construction 
-	baudrate: 4800,
-}
-const tcvrAdapter = () => ElecraftTcvr.K2(tcvrOptions) // deffer serial initialization
-
-const keyerOptions = {
-	cwAdapter: powron,
-	pttAdapter: new CwPttUart({device: '/dev/ttyUSB1', pttPin: 'dtr'}), //powron,
-	bufferSize: 2, // letter spaces (delay before start sending dit/dah to keyer)
-	pttTimeout: 5000, // milliseconds
-	pttTail: 500, // millis
-}
+import {
+	port, authTimeout, hwWatchdogTimeout, heartbeat, tcvrDevice, 
+	powronPins, powron, tcvrAdapter, keyerOptions
+} from './config'
 
 ////////////////////////////////////////
 const tokenParam = 'token'
