@@ -15,11 +15,11 @@ modeValues[modes.WFM] = 0x07
 modeValues[modes.RTTY] = 0x08
 modeValues[modes.RTTYR] = 0x09
 const filterValues = {
-	'6000': 88,
-	'2400': 80,
-	'2000': 82,
-	'500': 84,
-	'250': 86,
+	'6000': 4,
+	'2400': 0,
+	'2000': 1,
+	'500': 2,
+	'250': 3,
 }
 
 const hex2dec = (h) => {
