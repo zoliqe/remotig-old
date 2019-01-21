@@ -20,7 +20,7 @@ class Powron {
 			// this._uart.on('data', (data) => console.log(`POWRON => ${String(data).trim()}`))
 			setTimeout(() => {
 				this.send(startSeq)
-				oprions.serialBaudRate && this.serial(oprions.serialBaudRate)
+				options.serialBaudRate && this.serial(options.serialBaudRate)
 			}, 3000)
 		})
 		this._timeout = 600
