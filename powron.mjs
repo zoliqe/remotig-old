@@ -16,11 +16,11 @@ class Powron {
 		this._uart = new SerialPort(options.device, { baudRate: baudRate },
 			(err) => err && console.log(`POWRON ${err.message}`))
 		this._uart.on('open', () => {
-			console.log(`POWRON opened: ${options.device} ${baudRate}; keyer=${keyerPin} ptt=${pttPin} serial=${serialBaudRate}`)
+			console.log(`POWRON opened: ${options.device} ${baudRate}; keyer=${oprions.keyerPin} ptt=${oprions.pttPin} serial=${oprions.serialBaudRate}`)
 			// this._uart.on('data', (data) => console.log(`POWRON => ${String(data).trim()}`))
 			setTimeout(() => {
 				this.send(startSeq)
-				serialBaudRate && this.serial(serialBaudRate)
+				oprions.serialBaudRate && this.serial(oprions.serialBaudRate)
 			}, 3000)
 		})
 		this._timeout = 600
