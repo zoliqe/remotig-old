@@ -23,7 +23,7 @@ class ElecraftTcvr {
 		this._uart = data => adapter.serialData(data + ';')
 	}
 
-	static K2(adapter, options = {cwFilterCount, ssbFilterCount}) { //baudrate = 4800, cwFilterCount = 4, ssbFilterCount = 4
+	static K2(adapter, options = {cwFilterCount: 4, ssbFilterCount: 4}) { //baudrate = 4800, cwFilterCount = 4, ssbFilterCount = 4
 		return new ElecraftTcvr(adapter, options)
 	}
 
